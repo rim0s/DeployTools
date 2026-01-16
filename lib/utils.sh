@@ -5,7 +5,7 @@
 
 # 加载常量
 source "$(dirname "$0")/constants.sh" 2>/dev/null || source "./lib/constants.sh"
-# 加载logger（某些函数需要）
+# 加载logger (某些函数需要)
 source "$(dirname "$0")/logger.sh" 2>/dev/null || source "./lib/logger.sh" 2>/dev/null || true
 
 #################################################################################################
@@ -131,7 +131,7 @@ check_which_os_release(){
         return 1
     fi
 
-    # 读取操作系统信息（避免变量冲突）
+    # 读取操作系统信息（避免变量冲突)
     local ltmp_os_name=$(grep "^NAME=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
     local ltmp_os_version=$(grep "^VERSION_ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"' 2>/dev/null || echo "unknown")
     local ltmp_os_id=$(grep "^ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
@@ -201,13 +201,13 @@ check_which_os_release(){
         local ltmp_distrib_desc=$(grep "^DISTRIB_DESCRIPTION=" /etc/lsb-release 2>/dev/null | cut -d'=' -f2 | tr -d '"' || echo "")
         case "$ltmp_distrib_desc" in
             *"Server"*)
-                log_message "（根据 /etc/lsb-release，这是一台服务器操作系统）" "INFO" 2>/dev/null || true
+                log_message "（根据 /etc/lsb-release，这是一台服务器操作系统)" "INFO" 2>/dev/null || true
                 ;;
             *"Workstation"*)
-                log_message "（根据 /etc/lsb-release，这是一台工作站操作系统）" "INFO" 2>/dev/null || true
+                log_message "（根据 /etc/lsb-release，这是一台工作站操作系统)" "INFO" 2>/dev/null || true
                 ;;
             *"Desktop"*)
-                log_message "（根据 /etc/lsb-release，这是一台桌面操作系统）" "INFO" 2>/dev/null || true
+                log_message "（根据 /etc/lsb-release，这是一台桌面操作系统)" "INFO" 2>/dev/null || true
                 ;;
         esac
     fi
