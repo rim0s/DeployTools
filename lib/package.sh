@@ -19,17 +19,17 @@ which_app_manager(){
     then
         LOG_message "当前系统的包管理器是 dnf " "INFO"
         app_manager=dnf
-    # 检查 apt-get 命令是否存在（对于Debian系Linux,如Ubuntu,mint,kali 及其他基于 Linux 内核桌面操作系统）
+    # 检查 apt-get 命令是否存在(对于Debian系Linux,如Ubuntu,mint,kali 及其他基于 Linux 内核桌面操作系统)
     elif command -v apt-get &> /dev/null
     then
         LOG_message "当前系统的包管理器是 apt " "INFO"
         app_manager=apt
-    # 检查 pkg 命令是否存在（对于FreeBSD系Linux）
+    # 检查 pkg 命令是否存在(对于FreeBSD系Linux)
     elif command -v pkg &> /dev/null
     then
         LOG_message "当前系统的包管理器是 pkg " "INFO"
         app_manager=pkg
-    # 检查 zypper 命令是否存在（对于 openSUSE|SUSE 系Linux）
+    # 检查 zypper 命令是否存在(对于 openSUSE|SUSE 系Linux)
     elif command -v zypper &> /dev/null
     then
         LOG_message "当前系统的包管理器是 zypper " "INFO"
