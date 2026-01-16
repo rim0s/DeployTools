@@ -11,13 +11,13 @@ source "$(dirname "$0")/utils.sh" 2>/dev/null || source "./lib/utils.sh"
 source "$(dirname "$0")/sudo.sh" 2>/dev/null || source "./lib/sudo.sh"
 
 #################################################################################################
-# 获取当前CPU使用率（百分比）
-# 返回: CPU使用率（0-100）
+# 获取当前CPU使用率(百分比)
+# 返回: CPU使用率(0-100)
 #################################################################################################
 get_cpu_usage() {
     local ltmp_cpu_usage
     
-    # 方法1: 使用top命令（最准确）
+    # 方法1: 使用top命令(最准确)
     if command -v top >/dev/null 2>&1; then
         ltmp_cpu_usage=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1}')
         if [ -n "$ltmp_cpu_usage" ] && [ "$ltmp_cpu_usage" != "100" ]; then
@@ -26,7 +26,7 @@ get_cpu_usage() {
         fi
     fi
     
-    # 方法2: 使用vmstat（适用于CentOS 7）
+    # 方法2: 使用vmstat(适用于CentOS 7)
     if command -v vmstat >/dev/null 2>&1; then
         ltmp_cpu_usage=$(vmstat 1 2 | tail -1 | awk '{print 100 - $15}')
         if [ -n "$ltmp_cpu_usage" ]; then
@@ -74,7 +74,7 @@ get_cpu_usage() {
 get_memory_usage() {
     local ltmp_mem_info
     
-    # 使用free命令（最直接）
+    # 使用free命令(最直接)
     if command -v free >/dev/null 2>&1; then
         # CentOS 7的free命令输出格式
         ltmp_mem_info=$(free -m | grep '^Mem:')
@@ -82,7 +82,7 @@ get_memory_usage() {
         local ltmp_used=$(echo $ltmp_mem_info | awk '{print $3}')
         local ltmp_available=$(echo $ltmp_mem_info | awk '{print $7}')
         
-        # 如果available字段不存在（旧版本），使用free字段计算
+        # 如果available字段不存在(旧版本)，使用free字段计算
         if [ -z "$ltmp_available" ] || [ "$ltmp_available" = "0" ]; then
             local ltmp_free=$(echo $ltmp_mem_info | awk '{print $4}')
             local ltmp_buffers=$(echo $ltmp_mem_info | awk '{print $6}')
@@ -114,7 +114,7 @@ get_memory_usage() {
 }
 
 #################################################################################################
-# 显示当前系统资源使用情况（单次快照）
+# 显示当前系统资源使用情况(单次快照)
 #################################################################################################
 show_system_resources() {
     echo_sharp_line
@@ -165,8 +165,8 @@ show_system_resources() {
 }
 
 #################################################################################################
-# 持续监控系统资源（指定次数和间隔）
-# 参数: $1=监控次数, $2=间隔秒数（默认5秒）
+# 持续监控系统资源(指定次数和间隔)
+# 参数: $1=监控次数, $2=间隔秒数(默认5秒)
 #################################################################################################
 monitor_system_resources() {
     local ltmp_count=${1:-10}
@@ -294,8 +294,8 @@ monitor_system_resources() {
 }
 
 #################################################################################################
-# 使用vmstat进行监控（适用于CentOS 7，更详细的信息）
-# 参数: $1=监控次数, $2=间隔秒数（默认5秒）
+# 使用vmstat进行监控(适用于CentOS 7，更详细的信息)
+# 参数: $1=监控次数, $2=间隔秒数(默认5秒)
 #################################################################################################
 monitor_with_vmstat() {
     local ltmp_count=${1:-10}
@@ -357,7 +357,7 @@ monitor_with_vmstat() {
 
 #################################################################################################
 # 生成灾备系统采购参考报告
-# 参数: $1=监控次数（默认30次，约5分钟）, $2=间隔秒数（默认10秒）
+# 参数: $1=监控次数(默认30次，约5分钟), $2=间隔秒数(默认10秒)
 #################################################################################################
 generate_backup_report() {
     local ltmp_count=${1:-30}
@@ -433,7 +433,7 @@ generate_backup_report() {
         printf "总内存: %d MB (%.2f GB)\n" "$ltmp_mem_total" "$(echo "scale=2; $ltmp_mem_total / 1024" | bc)"
         echo ""
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "二、系统资源使用情况（空闲时监控）"
+        echo "二、系统资源使用情况(空闲时监控)"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo "监控时长: $((ltmp_count * ltmp_interval)) 秒 ($(echo "scale=1; $ltmp_count * $ltmp_interval / 60" | bc) 分钟)"
         echo "监控次数: $ltmp_count 次"
@@ -456,18 +456,18 @@ generate_backup_report() {
         echo "基于当前系统空闲时的资源使用情况，建议灾备系统配置如下："
         echo ""
         
-        # CPU建议（考虑20%的冗余）
+        # CPU建议(考虑20%的冗余)
         local ltmp_cpu_recommend=$(echo "scale=0; ($ltmp_cpu_avg * 1.2 + 0.5) / 1" | bc)
         if [ $ltmp_cpu_recommend -lt 1 ]; then
             ltmp_cpu_recommend=1
         fi
         echo "1. CPU配置建议:"
         echo "   当前系统空闲时CPU平均使用率: ${ltmp_cpu_avg}%"
-        echo "   建议灾备系统CPU核心数: $ltmp_cpu_cores 核（与主系统相同）"
+        echo "   建议灾备系统CPU核心数: $ltmp_cpu_cores 核(与主系统相同)"
         echo "   说明: 灾备系统通常需要与主系统相同的CPU配置以确保性能一致性"
         echo ""
         
-        # 内存建议（考虑30%的冗余和峰值）
+        # 内存建议(考虑30%的冗余和峰值)
         local ltmp_mem_recommend=$(echo "scale=0; ($ltmp_mem_total * $ltmp_mem_max / 100 * 1.3 + 0.5) / 1" | bc)
         local ltmp_mem_recommend_gb=$(echo "scale=2; $ltmp_mem_recommend / 1024" | bc)
         echo "2. 内存配置建议:"
@@ -480,7 +480,7 @@ generate_backup_report() {
         
         echo "3. 其他建议:"
         echo "   - 建议灾备系统与主系统使用相同的操作系统版本"
-        echo "   - 建议定期（如每月）重新评估资源使用情况"
+        echo "   - 建议定期(如每月)重新评估资源使用情况"
         echo "   - 建议在业务高峰期也进行监控，以获得更全面的数据"
         echo "   - 建议考虑未来业务增长，预留20-30%的资源余量"
         echo ""
@@ -504,7 +504,7 @@ generate_backup_report() {
 }
 
 #################################################################################################
-# 检查并安装监控工具（如果需要）
+# 检查并安装监控工具(如果需要)
 #################################################################################################
 check_monitor_tools() {
     local ltmp_missing_tools=()
