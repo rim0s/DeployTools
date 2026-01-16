@@ -36,7 +36,7 @@ get_active_firewall() {
 }
 
 #################################################################################################
-# 检查 firewalld 是否成功添加了端口（仅用于firewalld）
+# 检查 firewalld 是否成功添加了端口(仅用于firewalld)
 #################################################################################################
 check_firewalld_port() {
     local zone="$1"
@@ -260,7 +260,7 @@ add_firewall_ports() {
     elif [[ "$firewall_type" == "iptables" ]]; then
         add_iptables_ports "$protocol"
     else
-        # 如果系统同时启用了 firewalld 和 iptables（不常见），则向两者都添加端口
+        # 如果系统同时启用了 firewalld 和 iptables (不常见)，则向两者都添加端口
         # 注意：这里可能会存在逻辑冲突或重复添加的问题，需要根据实际需求调整
         if is_firewalld_active; then
             add_firewalld_ports "$zone" "${ports[@]}" "$protocol"
@@ -360,7 +360,7 @@ remove_iptables_ports() {
 
 #################################################################################################
 # 删除 iptables 端口函数 V2版本实现方式,因为两版均未测试,因此函数名末尾加了_后缀.
-#   需要注意的是，由于iptables规则的复杂性，精确删除特定规则可能需要更多的信息（如规则编号、链名等）。
+#   需要注意的是，由于iptables规则的复杂性，精确删除特定规则可能需要更多的信息(如规则编号\链名等)。
 #       不过，为了简化，这里我们假设要删除所有匹配指定协议和端口的INPUT链规则。
 #################################################################################################
 remove_iptables_ports_() {
@@ -388,11 +388,11 @@ remove_iptables_ports_() {
     done
 
     # 保存 iptables 规则（根据系统不同，使用不同的命令）
-    # 对于基于 Debian 的系统（如 Ubuntu），使用 iptables-persistent
+    # 对于基于 Debian 的系统(如 Ubuntu)，使用 iptables-persistent
     if command -v iptables-save &> /dev/null; then
         sudo_execute " iptables-save > /etc/iptables/rules.v4 "  # 对于 IPv4 规则
-        # 如果需要，也可以保存 IPv6 规则：iptables-save -6 > /etc/iptables/rules.v6
-    # 对于基于 Red Hat 的系统（如 CentOS、Fedora），使用 service iptables save
+        # 如果需要，也可以保存 IPv6 规则: iptables-save -6 > /etc/iptables/rules.v6
+    # 对于基于 Red Hat 的系统(如 CentOS、Fedora)，使用 service iptables save
     elif command -v service &> /dev/null; then
         sudo_execute "service iptables save"
     else
@@ -414,7 +414,7 @@ remove_iptables_ports_() {
 #  o   我们使用iptables -L命令的--line-numbers选项来获取规则的编号，这对于删除规则是必需的。
 #  o   我们使用grep来匹配规则的端口和协议，这可能会受到其他规则中相似内容的影响。因此，在实际应用中，您可能需要更精确的匹配逻辑。
 #  o   我们使用iptables-save或service iptables save命令来保存更改后的规则，这取决于系统的类型。您可能需要根据您的系统调整这部分逻辑。
-#  o   这个实现没有处理iptables规则删除失败的情况（除了打印一条错误消息和设置success变量为false之外）。在实际应用中，您可能需要更复杂的错误处理逻辑。
+#  o   这个实现没有处理iptables规则删除失败的情况(除了打印一条错误消息和设置success变量为false之外)。在实际应用中，您可能需要更复杂的错误处理逻辑。
 
 }
 
