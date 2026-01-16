@@ -7,7 +7,7 @@
 # 版本信息
 readonly VERSION="48.0"
 
-# 定义颜色变量（1是高亮）
+# 定义颜色变量(1是高亮)
 readonly GREEN='\033[1;32m'
 readonly green='\033[0;32m'
 readonly WHITE='\e[1;37m'
