@@ -23,7 +23,7 @@ sudo_execute_gui() {
         return $?
     fi
     
-    # 创建临时脚本用于zenity密码输入（使用base64编码的完整脚本）
+    # 创建临时脚本用于zenity密码输入 (使用base64编码的完整脚本)
     local ltmp_sudo_pass_input_method="IyEvYmluL2Jhc2gKI+S4gOS4queugOWNleeahCBhc2twYXNzIOiEmuacrO+8jOeUqOS6juS4uiBz
 dWRvIOaYvuekuuWbvuW9oueahOWvhueggei+k+WFpeahhgpsdG1wX3N1ZG9fcGFzc3dvcmRfdHA9
 IiIKCiMg5L2/55SoIHplbml0eSDmmL7npLrlr4bnoIHovpPlhaXmoYYKI2x0bXBfc3Vkb19wYXNz
