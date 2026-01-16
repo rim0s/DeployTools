@@ -30,7 +30,7 @@ source "${LIB_DIR}/firewall.sh" 2>/dev/null || source "./lib/firewall.sh"
 source "${LIB_DIR}/system.sh" 2>/dev/null || source "./lib/system.sh"
 source "${LIB_DIR}/monitor.sh" 2>/dev/null || source "./lib/monitor.sh"
 
-# 初始化日志（需要在config加载后）
+# 初始化日志(需要在config加载后)
 init_log 2>/dev/null
 
 # 记录模块加载
