@@ -1,0 +1,67 @@
+
+#######################################################################
+#####         配置VNCserver的详细步骤         ##########################
+#######################################################################
+
+#打开终端 复制或输入以下命令，过程可能需要根据提示需要按y或输入yes.也可能提示已经安装。
+sudo dnf install x11vnc
+
+#设置vnc连接密码
+sudo x11vnc -storepasswd 54VNCpassword@54321 /etc/x11vnc.pwd
+
+#编辑服务配置文件，配置文件中rfbport后的5900是默认端口号，可以在配置文件中修改。
+sudo nano /etc/systemd/system/x11vnc.service
+或   sudo nano /lib/systemd/system/x11vnc.service
+
+############以下是文件内容 复制粘贴进编辑页面###此行不必复制###################################
+
+[Unit]
+Description=Start x11vnc at startup.
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/x11vnc -auth /var/run/lightdm/root/:0 -forever -loop -noxdamage -repeat -rfbauth /etc/x11vnc.pwd -rfbport 5900 -shared
+ExecStop=/bin/kill ${MAINPID}
+RemainAfterExit=yes
+
+[Install] 
+WantedBy=multi-user.target
+
+###########以上是文件内容 此行不必复制##########################################
+
+#然后按Ctrl + X，输入“Y”以保存并退出nano编辑器。
+
+#以下三行命令分别是更新配置、允许开机自启、开启服务
+sudo systemctl daemon-reload  
+sudo systemctl enable x11vnc.service 
+sudo systemctl start x11vnc.service
+
+#打开防火墙端口
+sudo firewall-cmd --zone=public --add-port=8080/tcp --permanent
+
+
+##########万一遇到服务不能启动的情况，单独运行下面命令,查看是什么原因。###########################
+  /usr/bin/x11vnc -auth guess -forever -noxdamage -repeat -rfbauth /etc/x11vnc.pass -rfbport 5900 -shared
+################################################################################################
+############维护相关#################################################################
+#停止服务 
+sudo systemctl stop  x11vnc.service
+#启动服务
+sudo systemctl stop  x11vnc.service
+
+#修改VNC密码
+x11vnc -storepasswd   #此后会要求手动输入密码(过程无回显)
+mv ~/.vnc/passwd /etc/x11vnc.pwd  #替换现有密码文件
+
+或一条命令  sudo x11vnc -storepasswd NewVNCpassword@54321 /etc/x11vnc.pwd
+
+
+
+############经测试可连接的客户端#####################################################
+realvncviewer(vncconnect) #windows平台商软,统信商店也有
+xvnc4viewer
+vncviewer
+xvncviewer
+
+

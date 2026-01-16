@@ -1,0 +1,44 @@
+####################################################################
+##      磁盘扩容后更改CentOS7.9的boot分区内容到新增空间           ##
+####################################################################
+
+#1.增加一个分区
+sudo fdisk /dev/sda
+sudo reboot
+
+#2.格式化新分区，由于原boot分区默认是xfs
+sudo mkfs.xfs /dev/sda3
+
+#3.挂载并将原boot分区内容拷贝过来
+sudo mkdir -p /opt/tpboot
+sudo mount /dev/sda3 /opt/tpboot
+sudo rsync -av /boot/ /opt/tpboot/
+
+#4.查看并记录新分区/dev/sda3的UUID和原boot分区/dev/sda1的UUID
+ls -l /dev/disk/by-uuid
+vi /etc/fstab
+#替换为/dev/sda3的UUID
+sudo reboot
+
+#5.重启后/dev/sda3已经为/boot/分区
+sudo su && vi   /boot/grub2/grub.cfg
+#下行命令替换旧UUID:olduuid为新UUID:newuuid
+    :%s/olduuid/newuuid/g
+#grub.cfg内容替换完成
+
+#6.重启验证，没问题则格式化/dev/sda1分区并重新安装grub2到磁盘设备
+sudo reboot
+sudo mkfs.ext4 /dev/sda1
+sudo grub2-install /dev/sda
+sudo reboot
+
+#结束###################################################################
+
+
+相关技术：
+使用`:%s`命令替换全文中的字符串。例如，`:%s/old/new/g`命令将替换文档中所有的"old"为"new"。
+
+`:%s/olduuid/newuuid/g`
+
+实际样式
+:%s/2e4f9dba-0b91-4de5-9eda-323f495e039a/2e4f9dba-0b91-4de5-9eda-323f4ADFDSFF/g`
