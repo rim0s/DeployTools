@@ -30,6 +30,29 @@ source "${LIB_DIR}/firewall.sh" 2>/dev/null || source "./lib/firewall.sh"
 source "${LIB_DIR}/system.sh" 2>/dev/null || source "./lib/system.sh"
 source "${LIB_DIR}/monitor.sh" 2>/dev/null || source "./lib/monitor.sh"
 
+# 2026-01-17 由AI拆分的核心模块
+source "${LIB_DIR}/debug.sh" 2>/dev/null || source "./lib/debug.sh"
+source "${LIB_DIR}/network.sh" 2>/dev/null || source "./lib/network.sh"
+source "${LIB_DIR}/package_advanced.sh" 2>/dev/null || source "./lib/package_advanced.sh"
+source "${LIB_DIR}/path.sh" 2>/dev/null || source "./lib/path.sh"
+source "${LIB_DIR}/config_file.sh" 2>/dev/null || source "./lib/config_file.sh"
+source "${LIB_DIR}/parser.sh" 2>/dev/null || source "./lib/parser.sh"
+source "${LIB_DIR}/project.sh" 2>/dev/null || source "./lib/project.sh"
+
+# 2026-01-17 由AI拆分的系统管理模块（未测试）
+source "${LIB_DIR}/nfs.sh" 2>/dev/null || source "./lib/nfs.sh"
+source "${LIB_DIR}/vnc.sh" 2>/dev/null || source "./lib/vnc.sh"
+source "${LIB_DIR}/httpd.sh" 2>/dev/null || source "./lib/httpd.sh"
+source "${LIB_DIR}/security.sh" 2>/dev/null || source "./lib/security.sh"
+source "${LIB_DIR}/device.sh" 2>/dev/null || source "./lib/device.sh"
+
+# 2026-01-17 由AI拆分的V48遗留功能模块（未测试）
+source "${LIB_DIR}/config_file_v48_legacy.sh" 2>/dev/null || source "./lib/config_file_v48_legacy.sh"
+source "${LIB_DIR}/class_file_v48_legacy.sh" 2>/dev/null || source "./lib/class_file_v48_legacy.sh"
+source "${LIB_DIR}/media_tools_v48.sh" 2>/dev/null || source "./lib/media_tools_v48.sh"
+source "${LIB_DIR}/misc_legacy_v48.sh" 2>/dev/null || source "./lib/misc_legacy_v48.sh"
+source "${LIB_DIR}/system_boot.sh" 2>/dev/null || source "./lib/system_boot.sh"
+
 # 初始化日志(需要在config加载后)
 init_log 2>/dev/null
 
