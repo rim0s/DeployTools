@@ -183,14 +183,14 @@ log_MESSAGE "仅输出屏幕" "INFO"
 
 
 ##  History
-2026-01-17        由 AI 完成剩余模块拆分（第二批）：
+- 2026-01-17        由 AI 完成剩余模块拆分（第二批）：
                   - 新增 V48 遗留功能模块5个：config_file_v48_legacy、class_file_v48_legacy、media_tools_v48、misc_legacy_v48、system_boot（状态：未测试）
                   - 更新 loader.sh 追加所有新模块加载，按时间和类型分组注释
                   - 更新 README 补充新增模块清单
-2026-01-17        由 AI 拆分新增模块（第一批）：
+- 2026-01-17        由 AI 拆分新增模块（第一批）：
                   - 核心模块7个：debug、network、package_advanced、path、config_file、parser、project
                   - 系统管理模块5个：nfs、vnc、httpd、security、device（状态：未测试）
                   - 同步更新 README，补充模块清单与函数说明
-2025-11-09 15:30  由 Cursor 对 ProjectManage.sh 的第48版进行了模块化拆分。
+- 2025-11-09 15:30  由 Cursor 对 ProjectManage.sh 的第48版进行了模块化拆分。
                   暂未测试。
                   下一步先阅读和比对，确保逻辑完整无遗漏。
