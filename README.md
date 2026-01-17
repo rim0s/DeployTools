@@ -183,8 +183,8 @@ log_MESSAGE "仅输出屏幕" "INFO"
 
 ## 联系方式
 
-- Mail: wdily@qq.com
-- 作者: A Linux enthusiast who has been around since 2007
+- Mail: 
+- 作者: rim0s-team ( Deepseek, copilot, Cursor, rim0s )  
 
 
 ##  History
