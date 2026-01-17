@@ -2,85 +2,68 @@
 
 ## 概述
 
-本项目是对原 `ProjectManage_V48.sh` 脚本的模块化重构。原脚本包含7542行代码，功能完整但难以维护。经过模块化拆分后，代码结构更清晰，便于开发、测试、维护和扩展。
+本项目对原 `ProjectManage_V48.sh`（7542 行）进行模块化重构，拆分为可维护的功能模块。项目主入口为项目根目录的 `ProjectManage.sh`（包含 main）。README 中提到的 `main.sh` 是留给使用者基于本框架自定义的示例入口文件。
 
 ## 目录结构
 
 ```
 ProjectManage/
+├── ProjectManage.sh        # 主函数入口（本项目实际运行入口）
 ├── lib/                    # 功能模块目录
-│   ├── constants.sh       # 常量定义（颜色、版本、Banner等）
-│   ├── config.sh          # 全局变量配置
-│   ├── utils.sh           # 工具函数
-│   ├── logger.sh          # 日志功能模块
-│   ├── sudo.sh            # sudo执行功能模块
-│   ├── banner.sh          # Banner显示模块
-│   ├── firewall.sh        # 防火墙功能模块
-│   ├── init.sh            # 初始化模块
-│   └── loader.sh          # 模块加载器
-├── projects/              # 项目特定功能目录
-├── main.sh                # 主程序入口（待创建）
-└── README.md              # 本文件
+│   ├── 基础与工具: constants.sh, config.sh, utils.sh, logger.sh, banner.sh, sudo.sh, firewall.sh, init.sh, loader.sh
+│   ├── 网络与包管理: network.sh, package.sh, package_advanced.sh, path.sh
+│   ├── 配置解析: config_file.sh, parser.sh
+│   ├── 项目任务: project.sh
+│   ├── 服务与系统: nfs.sh, vnc.sh, httpd.sh, security.sh, device.sh, system.sh
+│   └── 其他: monitor.sh, help.sh, debug.sh, constants.sh 等
+├── history_release/        # 历史版本
+├── docs/                   # 文档
+└── README.md               # 本文件
 ```
 
-## 模块说明
+## 模块说明与函数清单（未测试标记仅针对今日新增模块）
 
-### 1. constants.sh - 常量定义模块
-- 版本信息
-- 颜色常量
-- Banner base64编码内容
-- 日志级别颜色映射
+### 基础与通用
+- **constants.sh**: 颜色常量、版本信息、Banner 编码、日志级别映射
+- **config.sh**: 全局变量、路径、开关、系统/防火墙/服务配置
+- **utils.sh**: 字符串处理、随机串、终端响铃、中文检测
+- **logger.sh**: `log_message`/`LOG_message`/`LOG_line`/`log_MESSAGE`、调用链追踪、日志初始化
+- **sudo.sh**: `sudo_execute`/`sudo_execute_gui`/`sudo_execute_quiet`/`sudo_execute_once`/`unsudo_execute`
+- **banner.sh**: `show_banner`/`show_banner_base64`/`show_banner_ascii`/`show_tail`
+- **firewall.sh**: `is_firewalld_active`/`is_iptables_active`/`get_active_firewall`/`add_firewall_ports`/`remove_firewall_ports`/`add_icmp_reply_block_rule`/`remove_icmp_reply_block_rule`
+- **init.sh**: `init_tmp`/`init_the_batch`/`end_the_batch`
+- **loader.sh**: 模块加载器
+- **debug.sh**: `bp`/`breakpoint`/`run_command`/`end_debug`（调试辅助）
 
-### 2. config.sh - 全局变量配置模块
-- 脚本基础信息
-- 路径配置
-- 功能开关
-- 系统信息
-- 防火墙相关变量
-- 服务配置变量
+### 网络与包管理
+- **network.sh**: `check_internet`/`check_intranet_ip`/`check_connectivity`/`get_all_ip`
+- **package.sh**: 基础包管理封装
+- **package_advanced.sh**: `check_Package_installed`/`check_packages_installed`/`install_package`/`dnf_install_packages`
+- **path.sh**: `check_path_available`/`make_s_ln`/`create_directory`/`create_directory_gui`
 
-### 3. utils.sh - 工具函数模块
-- 字符串处理函数（trim等）
-- 随机字符串生成
-- 终端响铃函数
-- 中文支持检查
+### 配置解析与参数处理
+- **config_file.sh**: `extract_item_grep`/`extract_item_sed`/`extract_item_awk`/`read_ini_file`/`write_ini_file`
+- **parser.sh**: `parse_short_options`/`parse_long_options`/`main_planB`
 
-### 4. logger.sh - 日志功能模块
-- 日志初始化
-- 调用链追踪
-- 多种日志输出函数：
-  - `log_message` - 同时输出到屏幕和文件
-  - `LOG_message` - 仅写入文件（trace模式下输出屏幕）
-  - `LOG_line` - 仅写入文件
-  - `log_MESSAGE` - 仅输出到屏幕
+### 项目任务
+- **project.sh**: `PJ_1234`/`PJ_5678`/`PJ_20241128`/`PJ_set_new_fedora_workstation`/`test_batch`
 
-### 5. sudo.sh - sudo执行功能模块
-- `sudo_execute` - 标准sudo执行
-- `sudo_execute_gui` - GUI环境下的sudo执行
-- `sudo_execute_` - 返回输出的sudo执行
-- `sudo_execute_quiet` - 安静模式sudo执行
-- `sudo_execute_once` - 执行后立即终止sudo认证
-- `unsudo_execute` - 非sudo执行
+### 今日新增（由AI拆分，状态：未测试）
+- **nfs.sh**: NFS 共享管理
+  - `empty_nfs_exports`/`nfs_share_usage`/`set_dir_2_nfs`/`remove_nfs_config`/`mount_nfs`/`mount_nfs_with_zenity`
+- **vnc.sh**: X11VNC 远程桌面
+  - `setup_x11vnc_server_usage`/`setup_x11vnc_server`/`setup_x11vnc_server_new`
+- **httpd.sh**: Apache HTTP 服务
+  - `start_my_httpd_usage`/`get_site_directories`/`start_my_httpd`/`stop_my_httpd_usage`/`stop_my_httpd`/`py_install`
+- **security.sh**: 安全配置
+  - `change_sshd_port`/`lock_user_randomly`/`unlock_user`/`project_set_user_never_expiration`/`project_set_record_his_with_datetime`/`add_ntp_server`
+- **device.sh**: 设备挂载
+  - `mount_new_device_usage`/`mount_new_device`/`wait_for_input_2_exit`
 
-### 6. banner.sh - Banner显示模块
-- `show_banner` - 主Banner显示函数
-- `show_banner_base64` - Base64编码Banner显示
-- `show_banner_ascii` - ASCII艺术Banner显示
-- `show_tail` - 结束Banner显示
-
-### 7. firewall.sh - 防火墙功能模块
-- `is_firewalld_active` - 检查firewalld是否激活
-- `is_iptables_active` - 检查iptables是否激活
-- `get_active_firewall` - 获取当前激活的防火墙类型
-- `add_firewall_ports` - 添加防火墙端口
-- `remove_firewall_ports` - 删除防火墙端口
-- `add_icmp_reply_block_rule` - 添加ICMP屏蔽规则
-- `remove_icmp_reply_block_rule` - 删除ICMP屏蔽规则
-
-### 8. init.sh - 初始化模块
-- `init_tmp` - 初始化临时目录
-- `init_the_batch` - 初始化脚本环境
-- `end_the_batch` - 清理和结束脚本
+### 其他现有模块
+- **system.sh**: 系统信息/操作封装
+- **monitor.sh**: 监控相关
+- **help.sh**: 使用说明
 
 ## 使用方法
 
@@ -188,6 +171,8 @@ log_MESSAGE "仅输出屏幕" "INFO"
 
 
 ##  History
-2025-11-09 15:30  由 Cursor 对 ProjectManage.sh的第48版进行了模块化拆分。
+- 2026-01-17        由 AI 拆分新增模块：nfs.sh、vnc.sh、httpd.sh、security.sh、device.sh（状态：未测试）。
+                  同步更新 README，补充模块清单与函数说明。
+- 2025-11-09 15:30  由 Cursor 对 ProjectManage.sh 的第48版进行了模块化拆分。
                   暂未测试。
                   下一步先阅读和比对，确保逻辑完整无遗漏。
