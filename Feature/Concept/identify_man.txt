@@ -7,14 +7,14 @@ SYNOPSIS
        magick identify [options] input-file
 
 OVERVIEW
-       The identify program is a member of the ImageMagick(1) suite of tools.  It describes the format and charac‐
+       The identify program is a member of the ImageMagick(1) suite of tools.  It describes the format and charac-
        teristics of one or more image files. It also reports if an image is incomplete or corrupt. The information
        returned  includes the image number, the file name, the width and height of the image, whether the image is
        colormapped or not, the number of colors in the image (by default off use -define unique=true option),  the
        number  of bytes in the image, the format of the image (JPEG, PNM, etc.), and finally the number of seconds
        it took to read and process the image. Many more attributes are available with the verbose option.
 
-       For more information about  the  identify  command,  point  your  browser  to  file:///usr/share/doc/Image‐
+       For more information about  the  identify  command,  point  your  browser  to  file:///usr/share/doc/Image-
        Magick-7/www/identify.html or https://imagemagick.org/script/identify.php.
 
 DESCRIPTION

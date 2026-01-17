@@ -92,10 +92,10 @@ for %%I in (C:) do (
 @REM vssadmin list shadowstorage
 
 
-:: 提取源目录所在的卷（例如 C:）
+:: 提取源目录所在的卷(例如 C:)
 for %%I in ("%SOURCE%") do set "SOURCE_VOLUME=%%~dI"
 
-:: 使用 PowerShell 获取源卷的大小和已用空间（以 GB 为单位，取整数部分）
+:: 使用 PowerShell 获取源卷的大小和已用空间(以 GB 为单位，取整数部分)
 for /f %%I in ('powershell -Command "[math]::Floor((Get-PSDrive -Name %SOURCE_VOLUME:~0,1%).Used / 1GB)"') do set "SOURCE_USED_GB=%%I"
 for /f %%I in ('powershell -Command "[math]::Floor((Get-PSDrive -Name %SOURCE_VOLUME:~0,1%).Free / 1GB)"') do set "SOURCE_FREE_GB=%%I"
 
@@ -109,13 +109,13 @@ if "%SOURCE_FREE_GB%"=="" (
     goto :EOF
 )
 
-:: 计算源卷的总大小（以 GB 为单位）
+:: 计算源卷的总大小(以 GB 为单位)
 set /a SOURCE_SIZE_GB=%SOURCE_USED_GB% + %SOURCE_FREE_GB%
 
-:: 计算目标分区的最低需求空间（源卷已用空间 + 20% 冗余）
+:: 计算目标分区的最低需求空间(源卷已用空间 + 20% 冗余)
 set /a REQUIRED_SPACE_GB=%SOURCE_USED_GB% + (%SOURCE_USED_GB% / 5)
 
-:: 使用 PowerShell 获取卷影备份临时存放的目标分区的可用空间（以 GB 为单位，取整数部分）
+:: 使用 PowerShell 获取卷影备份临时存放的目标分区的可用空间(以 GB 为单位，取整数部分)
 for /f %%I in ('powershell -Command "[math]::Floor((Get-PSDrive -Name %TEMP_BACKUP:~0,1%).Free / 1GB)"') do set "FREE_SPACE_GB=%%I"
 
 :: 检查变量是否为空
@@ -148,7 +148,7 @@ if exist %SHADOW_ID_BEFORE% del /f /q %SHADOW_ID_BEFORE%
 if exist %SHADOW_ID_AFTER% del /f /q %SHADOW_ID_AFTER%
 if exist %NEW_SHADOW_ID% del /f /q %NEW_SHADOW_ID%
 
-:: 获取当前系统的所有 SHADOW_ID（脚本开始时）
+:: 获取当前系统的所有 SHADOW_ID(脚本开始时)
 echo 正在获取现有的卷影快照 ID...
 vssadmin list shadows | findstr /i "Shadow Copy ID" > %SHADOW_ID_BEFORE%
 if %ERRORLEVEL% NEQ 0 (
@@ -163,14 +163,14 @@ echo 正在使用 wbadmin 创建卷影备份...
 wbadmin start backup -backupTarget:%TEMP_BACKUP_VOLUME% -include:%SOURCE_VOLUME% -quiet > wbadmin_output.log 2>&1
 if %ERRORLEVEL% NEQ 0 (
     echo wbadmin 备份失败，请检查系统配置。
-    echo 以下是 wbadmin 的错误信息：
+    echo 以下是 wbadmin 的错误信息:
     type wbadmin_output.log
     goto :EOF
 )
 
 :TEST_POINT_1
 
-:: 获取新的 SHADOW_ID 列表（wbadmin 创建快照后）
+:: 获取新的 SHADOW_ID 列表(wbadmin 创建快照后)
 echo 正在获取新的卷影快照 ID...
 vssadmin list shadows | findstr /i "Shadow Copy ID" > %SHADOW_ID_AFTER%
 
@@ -195,7 +195,7 @@ if "%BACKUP_DIR%"=="" (
 )
 
 :FOUND_BACKUP_DIR
-echo 找到的 WindowsImageBackup 目录为：%BACKUP_DIR%
+echo 找到的 WindowsImageBackup 目录为:%BACKUP_DIR%
 
 :: 查找最新的 VHDX 文件
 echo 正在查找最新的备份 VHDX 文件...
@@ -210,7 +210,7 @@ if "%VHD_FILE%"=="" (
 )
 
 :FOUND_VHD
-echo 找到的 VHDX 文件为：%VHD_FILE%
+echo 找到的 VHDX 文件为:%VHD_FILE%
 
 :: 挂载备份的 VHD 文件
 echo 正在挂载备份的 VHD 文件...
@@ -236,7 +236,7 @@ if "%DISK_NUMBER%"=="" (
     goto :EOF
 )
 
-echo 找到的虚拟磁盘编号为：%DISK_NUMBER%
+echo 找到的虚拟磁盘编号为:%DISK_NUMBER%
 :: ##############  此处已经找到磁盘编号 DISK_NUMBER ###############
 
 goto :TEST_POINT_2
@@ -253,11 +253,11 @@ if "%PARTITION_NUMBER%"=="" (
     echo 无法获取分区编号，请检查虚拟磁盘状态。
     goto :EOF
 )
-echo 找到的分区编号为：%PARTITION_NUMBER%
+echo 找到的分区编号为:%PARTITION_NUMBER%
 
 :: 调整分区编号以匹配 diskpart
 set /a DISKPART_PARTITION_NUMBER=%PARTITION_NUMBER% + 1
-echo 调整后的分区编号为：%DISKPART_PARTITION_NUMBER%
+echo 调整后的分区编号为:%DISKPART_PARTITION_NUMBER%
 
 :: 使用 wmic 获取分区大小
 echo 正在获取分区大小...
@@ -271,7 +271,7 @@ if "%PARTITION_SIZE%"=="" (
     echo 无法获取分区大小，请检查虚拟磁盘状态。
     goto :EOF
 )
-echo 找到的分区大小为：%PARTITION_SIZE% 字节
+echo 找到的分区大小为:%PARTITION_SIZE% 字节
 
 :: 检查分区大小是否有效
 if %PARTITION_SIZE% LEQ 0 (
@@ -280,8 +280,8 @@ if %PARTITION_SIZE% LEQ 0 (
 )
 
 :: 输出解析结果
-echo wmic分区编号：%PARTITION_NUMBER%，大小：%PARTITION_SIZE% 字节。
-echo diskpart分区编号：%DISKPART_PARTITION_NUMBER%，大小：%PARTITION_SIZE% 字节。
+echo wmic分区编号:%PARTITION_NUMBER%，大小:%PARTITION_SIZE% 字节。
+echo diskpart分区编号:%DISKPART_PARTITION_NUMBER%，大小:%PARTITION_SIZE% 字节。
 
 :TEST_POINT_2
 :: 列出磁盘的分区信息
@@ -290,7 +290,7 @@ echo select disk %DISK_NUMBER% >> check_disk.txt
 echo list partition >> check_disk.txt
 diskpart /s check_disk.txt > partition_list.txt
 
-:: 根据分区大小匹配目标分区编号（选择最大的分区）
+:: 根据分区大小匹配目标分区编号(选择最大的分区)
 set "TARGET_PARTITION_NUMBER="
 set "MAX_PARTITION_SIZE=0"
 
@@ -306,7 +306,7 @@ if "%TARGET_PARTITION_NUMBER%"=="" (
     goto :EOF
 )
 
-echo 找到的目标分区编号为：%TARGET_PARTITION_NUMBER%
+echo 找到的目标分区编号为:%TARGET_PARTITION_NUMBER%
 ::##############  此处已经找到分区编号 PARTITION_NUMBER ###############
 
 :: 使用找到的分区编号分配盘符
@@ -335,13 +335,13 @@ if "%MOUNTED_DRIVE%"=="" (
     goto :EOF
 )
 
-echo 分区已成功加载为卷，盘符为：%MOUNTED_DRIVE%
+echo 分区已成功加载为卷，盘符为:%MOUNTED_DRIVE%
 
 :: 提取相对路径
 set "RELATIVE_SOURCE=%SOURCE:~3%"
 
 :: 验证挂载的虚拟磁盘目录结构
-echo 挂载的虚拟磁盘目录结构：
+echo 挂载的虚拟磁盘目录结构:
 dir %MOUNTED_DRIVE%\
 
 :: 使用 robocopy 复制文件
@@ -373,7 +373,7 @@ echo 正在删除卷影快照...
 :: 删除新增的卷影快照
 if exist %NEW_SHADOW_ID% (
     for /f "tokens=3" %%I in (%NEW_SHADOW_ID%) do (
-        echo 正在删除卷影快照 ID：%%I
+        echo 正在删除卷影快照 ID:%%I
         vssadmin delete shadows /shadow=%%I /quiet
     )
     echo 新增的卷影快照已成功删除。
