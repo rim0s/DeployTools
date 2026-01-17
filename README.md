@@ -48,7 +48,7 @@ ProjectManage/
 ### 项目任务
 - **project.sh**: `PJ_1234`/`PJ_5678`/`PJ_20241128`/`PJ_set_new_fedora_workstation`/`test_batch`
 
-### 今日新增（由AI拆分，状态：未测试）
+### 2026-01-17 新增系统管理模块（由AI拆分，状态：未测试）
 - **nfs.sh**: NFS 共享管理
   - `empty_nfs_exports`/`nfs_share_usage`/`set_dir_2_nfs`/`remove_nfs_config`/`mount_nfs`/`mount_nfs_with_zenity`
 - **vnc.sh**: X11VNC 远程桌面
@@ -60,10 +60,22 @@ ProjectManage/
 - **device.sh**: 设备挂载
   - `mount_new_device_usage`/`mount_new_device`/`wait_for_input_2_exit`
 
+### 2026-01-17 新增V48遗留功能模块（由AI拆分，状态：未测试）
+- **config_file_v48_legacy.sh**: 配置文件读写（V48旧版实现）
+  - `write_conf_file_old`/`get_item_from_conf`/`write_conf_file`（legacy版）
+- **class_file_v48_legacy.sh**: 类文件写入（V48旧版实现）
+  - `write_class_file_`（未优化版）/`write_class_file_Modifing`（改进中版）/`write_class_file_error`（失败版保留）
+- **media_tools_v48.sh**: 媒体与校验工具
+  - `generate_verification_code`（验证码生成与校验）/`find_pic`（图片筛选与操作）
+- **misc_legacy_v48.sh**: 杂项功能
+  - `start_x_virtual_shell`（模拟交互shell）/`bash_description`（功能描述）/`process_file`（文件处理示例）
+- **system_boot.sh**: 引导与虚拟化信息
+  - `which_bootfirmware`（检测UEFI/BIOS）/`list_grub_entries`（列举GRUB条目）/`list_support_vmtech`（虚拟化技术支持）
+
 ### 其他现有模块
-- **system.sh**: 系统信息/操作封装
-- **monitor.sh**: 监控相关
-- **help.sh**: 使用说明
+- **system.sh**: 系统信息/操作封装、`backup_and_log`备份功能
+- **monitor.sh**: 系统资源监控
+- **help.sh**: 使用说明与帮助信息
 
 ## 使用方法
 
@@ -171,8 +183,14 @@ log_MESSAGE "仅输出屏幕" "INFO"
 
 
 ##  History
-- 2026-01-17        由 AI 拆分新增模块：nfs.sh、vnc.sh、httpd.sh、security.sh、device.sh（状态：未测试）。
-                  同步更新 README，补充模块清单与函数说明。
-- 2025-11-09 15:30  由 Cursor 对 ProjectManage.sh 的第48版进行了模块化拆分。
+2026-01-17        由 AI 完成剩余模块拆分（第二批）：
+                  - 新增 V48 遗留功能模块5个：config_file_v48_legacy、class_file_v48_legacy、media_tools_v48、misc_legacy_v48、system_boot（状态：未测试）
+                  - 更新 loader.sh 追加所有新模块加载，按时间和类型分组注释
+                  - 更新 README 补充新增模块清单
+2026-01-17        由 AI 拆分新增模块（第一批）：
+                  - 核心模块7个：debug、network、package_advanced、path、config_file、parser、project
+                  - 系统管理模块5个：nfs、vnc、httpd、security、device（状态：未测试）
+                  - 同步更新 README，补充模块清单与函数说明
+2025-11-09 15:30  由 Cursor 对 ProjectManage.sh 的第48版进行了模块化拆分。
                   暂未测试。
                   下一步先阅读和比对，确保逻辑完整无遗漏。
