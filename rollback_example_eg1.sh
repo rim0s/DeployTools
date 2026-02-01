@@ -2,6 +2,10 @@
 set -euo pipefail
 
 # 例子：替换 /home/yunxi/traffic 下的 jar 并保证可回滚
+#!/bin/bash
+set -euo pipefail
+
+# 例子：替换 /home/yunxi/traffic 下的 jar 并保证可回滚
 # 步骤（按要求）：
 # 1. 停服务: docker stop traffic
 # 2. 备份: mv traffic-2.1.1_42.jar bak20260129traffic-2.1.1_42.jar
@@ -22,12 +26,43 @@ source "${_libdir}/rollback-manager.sh" 2>/dev/null || true
 set -- "${saved_args[@]}"
 
 TARGET_DIR="/home/yunxi/traffic"
-JAR_NAME="traffic-2.1.1_42.jar"
-BACKUP_NAME="bak20260129${JAR_NAME}"
-CONTAINER_NAME="traffic"
 
-# 参数解析
-MODE="update"    # update 或 restore
+#!/bin/bash
+set -euo pipefail
+
+# rollback_example_eg1.sh
+# 安全替换jar的示例脚本（支持 --yes, --dryrun, --restore <session>）
+
+_libdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"
+# 在 source 时避免污染位置参数
+saved_args=("$@")
+set --
+source "${_libdir}/logger.sh" 2>/dev/null || true
+source "${_libdir}/utils.sh" 2>/dev/null || true
+source "${_libdir}/sudo.sh" 2>/dev/null || true
+source "${_libdir}/rollback-manager.sh" 2>/dev/null || true
+set -- "${saved_args[@]}"
+
+TARGET_DIR="/home/yunxi/traffic"
+JAR_NAME="${JAR_NAME:-traffic-2.1.1_42.jar}"
+CONTAINER_NAME="${CONTAINER_NAME:-traffic}"
+BACKUP_NAME="${BACKUP_NAME:-bak$(date +%Y%m%d%H%M%S)-${JAR_NAME}}"
+
+validate_params() {
+    local missing=()
+    [[ -z "${JAR_NAME:-}" ]] && missing+=("JAR_NAME")
+    [[ -z "${CONTAINER_NAME:-}" ]] && missing+=("CONTAINER_NAME")
+    [[ -z "${TARGET_DIR:-}" ]] && missing+=("TARGET_DIR")
+    if (( ${#missing[@]} > 0 )); then
+        echo "缺少必填变量: ${missing[*]}" >&2
+        echo "请通过环境变量或修改脚本顶部来设置这些变量。示例：" >&2
+        echo "  JAR_NAME=${JAR_NAME:-traffic-2.1.1_42.jar} CONTAINER_NAME=${CONTAINER_NAME:-traffic} TARGET_DIR=${TARGET_DIR} $0 --yes" >&2
+        exit 2
+    fi
+    echo "使用参数: TARGET_DIR=${TARGET_DIR}, JAR_NAME=${JAR_NAME}, CONTAINER_NAME=${CONTAINER_NAME}, BACKUP_NAME=${BACKUP_NAME}" >&2
+}
+
+MODE="update"
 RESTORE_SESSION=""
 ENFORCE_YES=0
 DRYRUN=0
@@ -38,101 +73,84 @@ run_system_cmd() {
         echo "[DRYRUN] $cmd"
         return 0
     fi
-    # 使用项目 sudo 封装执行（记录日志）
     sudo_execute "$cmd"
 }
 
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --yes)
-            ENFORCE_YES=1
-            shift
-            ;;
-        --dryrun)
-            DRYRUN=1
-            shift
-            ;;
-        --restore)
-            MODE="restore"
-            RESTORE_SESSION="$2"
-            shift 2
-            ;;
-        -h|--help)
-            cat <<EOF
-Usage: $0 --yes
-       $0 --restore <sessionNO>
+print_help() {
+    cat <<EOF
+Usage: $0 --yes [--dryrun]
+       $0 --restore <sessionNO> [--dryrun]
 
---yes           必须（防误操作），允许执行替换流程。
+--yes           必须（防止误操作），允许执行替换流程。
+--dryrun        演练（打印命令，不实际执行）。
 --restore id    使用历史会话 id 执行回滚（不需要 --yes）。
 EOF
-            exit 0
-            ;;
-        *)
-            echo "未知参数: $1" >&2
-            exit 2
-            ;;
-    esac
-done
+}
 
-# 参数校验：如果不是 restore，则必须传 --yes
-if [[ "$MODE" != "restore" && $ENFORCE_YES -ne 1 ]]; then
-    echo "为防止误操作，必须加 --yes 才会执行更新。若要恢复历史会话，使用 --restore <sessionNO>。" >&2
-    exit 2
-fi
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --yes)
+                ENFORCE_YES=1; shift ;;
+            --dryrun)
+                DRYRUN=1; shift ;;
+            --restore)
+                MODE="restore"; RESTORE_SESSION="$2"; shift 2 ;;
+            -h|--help)
+                print_help; exit 0 ;;
+            *)
+                echo "未知参数: $1" >&2; print_help; exit 2 ;;
+        esac
+    done
 
-if [[ "$MODE" == "restore" ]]; then
-    # 直接恢复历史会话：不需要创建新的会话，直接加载并回滚
-    if [[ -z "$RESTORE_SESSION" ]]; then
-        echo "--restore 需要一个 session id" >&2
+    if [[ "$MODE" != "restore" && $ENFORCE_YES -ne 1 ]]; then
+        echo "为防止误操作，必须加 --yes 才会执行更新。若要恢复历史会话，使用 --restore <sessionNO>。" >&2
         exit 2
     fi
-    # 加载 rollback 框架（确保函数存在）已在文件顶部 source
-    if ! _load_transaction_into_memory "$RESTORE_SESSION"; then
-        log_error "加载会话失败: $RESTORE_SESSION"
-        exit 1
+}
+
+_do_restore() {
+    local RESTORE_SESSION_LOCAL="$1"
+    if ! _load_transaction_into_memory "$RESTORE_SESSION_LOCAL"; then
+        log_error "加载会话失败: $RESTORE_SESSION_LOCAL"
+        return 1
     fi
-    log_info "开始回滚会话: $RESTORE_SESSION"
+    log_info "开始回滚会话: $RESTORE_SESSION_LOCAL"
     if [[ "$DRYRUN" -eq 1 ]]; then
         echo "[DRYRUN] 会话回滚演练: 以下回滚命令将按逆序执行（仅演示，不执行）"
         for ((i=${#OPERATION_STACK[@]}-1; i>=0; i--)); do
             opid=${OPERATION_STACK[$i]}
             echo "  op=$opid -> ${ROLLBACK_COMMANDS[$opid]}"
         done
-        exit 0
+        return 0
     fi
-    if rollback_all; then
-        log_info "回滚会话 $RESTORE_SESSION 完成"
-        exit 0
-    else
-        log_error "回滚会话 $RESTORE_SESSION 部分失败"
-        exit 2
-    fi
-else
-    # 初始化事务并以可编程方式获取 session id
-    sid=""
+    return $(rollback_all)
+}
+
+init_session() {
     sid=$(init_rollback_system_return) || {
         echo "无法初始化回滚系统" >&2
         exit 1
     }
     log_info "初始化事务，SESSION_ID=${sid}"
-    # 也把 session id 写到 stdout 便于调用者捕获
     echo "SESSION_ID=${sid}"
-fi
-        # 确保日志目录存在（logger 依赖此路径）
-        _logdir_parent="$(dirname "${this_LOG_FILE:-/tmp/rollback_example.log}")"
-        if [[ -e "$_logdir_parent" ]]; then
-            if [[ ! -d "$_logdir_parent" ]]; then
-                echo "日志路径冲突：$_logdir_parent 已存在且不是目录" >&2
-                exit 1
-            fi
-        else
-            mkdir -p "$_logdir_parent" || {
-                echo "无法创建日志目录: $_logdir_parent" >&2
-                exit 1
-            }
-        fi
+    validate_params
+}
 
-# 全局标志：是否已提交（成功完成后设为1，防止 trap 回滚）
+# ensure logger dir exists
+_logdir_parent="$(dirname "${this_LOG_FILE:-/tmp/rollback_example.log}")"
+if [[ -e "$_logdir_parent" ]]; then
+    if [[ ! -d "$_logdir_parent" ]]; then
+        echo "日志路径冲突：$_logdir_parent 已存在且不是目录" >&2
+        exit 1
+    fi
+else
+    mkdir -p "$_logdir_parent" || {
+        echo "无法创建日志目录: $_logdir_parent" >&2
+        exit 1
+    }
+fi
+
 _COMMITTED=0
 
 on_error() {
@@ -145,11 +163,7 @@ on_error() {
     exit $rc
 }
 
-trap 'on_error' ERR
-
-# 退出时提示 session id 可用于恢复
 finish() {
-    # 当处于 restore 模式时不重复提示
     if [[ "$MODE" == "restore" ]]; then
         return 0
     fi
@@ -163,69 +177,117 @@ finish() {
         fi
     fi
 }
-trap finish EXIT
 
-log_info "开始更新 ${TARGET_DIR}/${JAR_NAME} (container=${CONTAINER_NAME})"
+register_rollback_op() {
+    ROLLBACK_CMD="mv '${TARGET_DIR}/${BACKUP_NAME}' '${TARGET_DIR}/${JAR_NAME}' && docker restart ${CONTAINER_NAME}"
+    if [[ "$DRYRUN" -eq 1 ]]; then
+        echo "[DRYRUN] will register rollback: $ROLLBACK_CMD"
+        opid="dryrun-op-$(date +%s)"
+    else
+        opid=$(register_operation "" "$ROLLBACK_CMD" "restore original jar and restart ${CONTAINER_NAME}") || {
+            log_error "register_operation 失败"
+            exit 1
+        }
+        log_info "已预写回滚操作 opid=$opid"
+    fi
+}
 
-# 预写回滚命令：把备份还原回原文件并重启容器
-ROLLBACK_CMD="mv '${TARGET_DIR}/${BACKUP_NAME}' '${TARGET_DIR}/${JAR_NAME}' && docker restart ${CONTAINER_NAME}"
-# 使用 register_operation（prewrite），调用者在成功后调用 op_commit
-if [[ "$DRYRUN" -eq 1 ]]; then
-    echo "[DRYRUN] will register rollback: $ROLLBACK_CMD"
-    opid="dryrun-op-$(date +%s)"
+stop_service() {
+    log_info "停止容器: ${CONTAINER_NAME}"
+    run_system_cmd "docker stop ${CONTAINER_NAME}"
+}
+
+backup_jar() {
+    if [[ ! -f "${TARGET_DIR}/${JAR_NAME}" ]]; then
+        if [[ "$DRYRUN" -eq 1 ]]; then
+            echo "[DRYRUN] 原始 jar 不存在，演练模式下将模拟备份: ${TARGET_DIR}/${JAR_NAME} -> ${BACKUP_NAME}"
+            return 0
+        fi
+        log_error "未找到原始 jar: ${TARGET_DIR}/${JAR_NAME}"
+        return 1
+    fi
+    log_info "备份原始 jar -> ${BACKUP_NAME}"
+    run_system_cmd "mv '${TARGET_DIR}/${JAR_NAME}' '${TARGET_DIR}/${BACKUP_NAME}'"
+}
+
+check_new_package() {
+    if [[ ! -f "${TARGET_DIR}/${JAR_NAME}" ]]; then
+        if [[ "$DRYRUN" -eq 1 ]]; then
+            echo "[DRYRUN] 新包 ${TARGET_DIR}/${JAR_NAME} 未找到，演练模式下将继续展示后续动作"
+            return 0
+        fi
+        log_error "新包 ${TARGET_DIR}/${JAR_NAME} 未找到，取消更新并回滚"
+        return 1
+    fi
+    return 0
+}
+
+start_service() {
+    log_info "重启容器: ${CONTAINER_NAME}"
+    run_system_cmd "docker restart ${CONTAINER_NAME}"
+}
+
+verify_service() {
+    log_info "验证进程: 检查是否存在 ${JAR_NAME}"
+    if [[ "$DRYRUN" -eq 1 ]]; then
+        echo "[DRYRUN] 演练模式跳过实际进程检查：将模拟查找 ${JAR_NAME} 的结果"
+        return 0
+    fi
+    if ps -ef | grep java | grep -v grep | grep -q "${JAR_NAME}"; then
+        log_info "验证通过：已找到进程包含 ${JAR_NAME}"
+        return 0
+    else
+        log_error "验证失败：未在进程中找到 ${JAR_NAME}"
+        return 1
+    fi
+}
+
+commit_ops() {
+    if [[ "$DRYRUN" -eq 0 ]]; then
+        op_commit "$opid" || log_warn "op_commit 失败: $opid (但更新已完成)"
+    else
+        echo "[DRYRUN] would op_commit $opid"
+    fi
+}
+
+main() {
+    trap 'on_error' ERR
+    trap finish EXIT
+
+    log_info "开始更新 ${TARGET_DIR}/${JAR_NAME} (container=${CONTAINER_NAME})"
+
+    register_rollback_op
+
+    stop_service
+
+    backup_jar || { false; }
+
+    check_new_package || { false; }
+
+    start_service
+
+    verify_service || { false; }
+
+    commit_ops
+
+    _COMMITTED=1
+    trap - ERR
+
+    log_info "更新完成，备份保留为 ${TARGET_DIR}/${BACKUP_NAME}。"
+    return 0
+}
+
+### 执行主函数
+parse_args "$@"
+if [[ "$MODE" == "restore" ]]; then
+    if [[ -z "$RESTORE_SESSION" ]]; then
+        echo "--restore 需要一个 session id" >&2
+        exit 2
+    fi
+    _do_restore "$RESTORE_SESSION" || exit $?
 else
-    opid=$(register_operation "" "$ROLLBACK_CMD" "restore original jar and restart ${CONTAINER_NAME}") || {
-        log_error "register_operation 失败"
-        exit 1
-    }
-    log_info "已预写回滚操作 opid=$opid"
+    init_session
+    main
 fi
 
-# 1) 停服务
-log_info "停止容器: ${CONTAINER_NAME}"
-run_system_cmd "docker stop ${CONTAINER_NAME}"
-
-# 2) 备份当前 jar
-if [[ ! -f "${TARGET_DIR}/${JAR_NAME}" ]]; then
-    log_error "未找到原始 jar: ${TARGET_DIR}/${JAR_NAME}"
-    exit 1
-fi
-
-log_info "备份原始 jar -> ${BACKUP_NAME}"
-run_system_cmd "mv '${TARGET_DIR}/${JAR_NAME}' '${TARGET_DIR}/${BACKUP_NAME}'"
-
-# 检查新包是否已上传（期望新包占位为同名 ${JAR_NAME}）
-if [[ ! -f "${TARGET_DIR}/${JAR_NAME}" ]]; then
-    log_error "新包 ${TARGET_DIR}/${JAR_NAME} 未找到，取消更新并回滚"
-    # 触发错误以调用 trap -> rollback
-    false
-fi
-
-# 3) 启动
-log_info "重启容器: ${CONTAINER_NAME}"
-run_system_cmd "docker restart ${CONTAINER_NAME}"
-
-# 4) 验证进程中包含目标 jar 名称
-log_info "验证进程: 检查是否存在 ${JAR_NAME}"
-if ps -ef | grep java | grep -v grep | grep -q "${JAR_NAME}"; then
-    log_info "验证通过：已找到进程包含 ${JAR_NAME}"
-else
-    log_error "验证失败：未在进程中找到 ${JAR_NAME}"
-    # 触发错误 -> on_error -> rollback
-    false
-fi
-
-# 一切成功：将先前的预写 pending 提交为已完成
-if [[ "$DRYRUN" -eq 0 ]]; then
-    op_commit "$opid" || {
-        log_warn "op_commit 失败: $opid (但更新已完成)"
-    }
-else
-    echo "[DRYRUN] would op_commit $opid"
-fi
-
-_COMMITTED=1
-trap - ERR
-
-log_info "更新完成，备份保留为 ${TARGET_DIR}/${BACKUP_NAME}。"
 exit 0
