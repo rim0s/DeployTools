@@ -46,7 +46,7 @@ parse_long_options() {
                 ;;
             --listen)
                 shift
-                while [ "$#" -gt 0 ] && [ "${1:0:1}" != "-" ]; then
+                while [ "$#" -gt 0 ] && [ "${1:0:1}" != "-" ]; do
                     LISTEN_VALUES+=("$1")
                     shift
                 done
