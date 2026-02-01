@@ -90,21 +90,28 @@ rollback_all
 - 干净的回滚：回滚命令本身可能失败，请在 `rollback_operation` 中记录失败并继续执行其他回滚项（避免中断导致不完整回滚）。
 - 并发：当前实现以简单文件/目录存储状态，没有复杂锁机制。若并发运行回滚/操作，请添加进程锁（`flock`）或基于原子重命名的策略以避免 race 条件。
 
-**目录/大文件操作增强**
+**目录/大文件操作增强（已更新）**
 
-- 新增校验和与 manifest 支持：
-  - `compute_checksum <file>`：计算文件校验（优先 sha256），对大文件可降级为 size+mtime 判断。可通过环境变量 `ROLLBACK_VERIFY_CHECKSUM` 关闭。
-  - `generate_manifest <srcdir> <manifest_out>`：生成目录 manifest（TSV：relpath, size, mtime, checksum）。
-  - `verify_manifest <manifest> <target_dir> <mismatch_out> [src_dir]`：校验目标目录是否与 manifest 匹配，发现不一致写入 mismatch 文件并返回非 0。
+- 核心变更摘要：
+  - 单文件操作（`safe_cp` / `safe_mv` 的文件分支）现在强制执行双重哈希校验：先使用 `sha256`（通过 `sha256sum` 或 `shasum -a 256`），再使用 `md5`（通过 `md5sum` 或 `md5`）。若任一哈希工具不可用或任一哈希不匹配，操作将回滚并返回错误。此行为不可被关闭（为保证单文件一致性）。
+  - 目录递归（多文件）操作仍使用 manifest 校验机制，但是否启用目录校验现在由 `ROLLBACK_DIR_VERIFY_CHECKSUM` 控制（默认继承自 `ROLLBACK_VERIFY_CHECKSUM`）。大文件仍可根据阈值降级为 size+mtime 判断。
 
-- 空间评估：新增 `check_space_for_operation <src> <backup_root>`，会估算源大小并与 `backup_root` 所在分区可用空间比较，决定是否能进行完整备份。配置项：`ROLLBACK_LARGE_FILE_THRESHOLD_BYTES`（默认 50MB）。
+- 具体函数与变量：
+  - `compute_sha256 <file>` / `compute_md5 <file>`：分别计算文件的 sha256 与 md5（优先使用系统工具 `sha256sum`/`shasum` 与 `md5sum`/`md5`）。
+  - 单文件流程：在执行单文件复制/移动前会计算源文件的 sha256 与 md5，执行后再分别计算目标文件两种哈希并逐一比较；若无法计算任一哈希或比较不一致，回滚操作并失败。
+  - 目录流程（递归）：`generate_manifest <srcdir> <manifest_out>` 仍生成 TSV（relpath, size, mtime, checksum）；实际是否计算 checksum 由 `ROLLBACK_DIR_VERIFY_CHECKSUM` 控制，并且对于大于 `ROLLBACK_LARGE_FILE_THRESHOLD_BYTES`（默认 50MB）的文件会跳过 checksum，仅比较 size/mtime。
 
-- 备份策略：当空间不足时，`safe_cp`/`safe_mv` 会降级为 `manifest-only`（不复制完整目标到事务备份目录），并记录警告。请在生产环境评估 `ROLLBACK_PREFIX` 的可用空间或调整阈值。
+- 配置与安全：
+  - `ROLLBACK_DIR_VERIFY_CHECKSUM`：控制目录递归时是否对每个小文件计算 checksum（默认值继承自 `ROLLBACK_VERIFY_CHECKSUM`）。
+  - `ROLLBACK_VERIFY_CHECKSUM`：历史通用开关（保留并作为默认继承源），但单文件操作的双哈希校验为强制行为，不受此变量关闭影响。
+  - `ROLLBACK_LARGE_FILE_THRESHOLD_BYTES`：大文件阈值（默认 50MB），超过后会在目录校验中跳过 checksum，仅使用 size/mtime 判断以节省时间/IO。
+  - 依赖工具：`sha256sum` 或 `shasum -a 256`，以及 `md5sum` 或 `md5`。在缺少相应工具时，单文件操作会失败并回滚，以避免不安全的假设。
 
-- 冲突处理模式：通过环境变量 `ROLLBACK_ROLLBACK_CONFLICT_MODE` 控制（可选值：`skip`(默认)|`overwrite`|`merge`）。
-  - `skip`：在回滚或校验发生冲突时跳过并记录冲突。
-  - `overwrite`：强制覆盖目标（危险，谨慎使用）。
-  - `merge`：保存冲突文件的两个副本到事务 pending 区：`<opid>.merge/<relpath>.ours`（来自源）与 `<opid>.merge/<relpath>.theirs`（目标当前内容），并在 `<opid>.merge/merge-report.txt` 中生成合并报告，方便人工合并和审计。实现细节：当 `safe_cp`/`safe_mv` 校验失败且模式为 `merge` 时，会返回特殊退出码 `2` 并写入合并目录（pending 下），以便后续人工处理。
+- 空间评估与备份策略（保持不变）：
+  - `check_space_for_operation <src> <backup_root>`：估算源大小并与备份目录所在分区可用空间比较。若空间不足，目录操作可能退化为 manifest-only 模式（不复制完整目标到事务备份目录），并记录警告。
+
+- 冲突处理模式（无改动）：
+  - `ROLLBACK_ROLLBACK_CONFLICT_MODE` 可取 `skip`|`overwrite`|`merge`，`merge` 模式仍会在 pending 下生成 `.merge` 目录与合并报告，返回特殊退出码 `2` 以便人工介入。
 
 **示例：目录复制（带 merge 模式）**
 

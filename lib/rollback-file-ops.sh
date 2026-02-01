@@ -2,6 +2,7 @@
 
 # 配置（可由外部覆盖）
 : ${ROLLBACK_VERIFY_CHECKSUM:=true}
+: ${ROLLBACK_DIR_VERIFY_CHECKSUM:=${ROLLBACK_VERIFY_CHECKSUM}}
 : ${ROLLBACK_LARGE_FILE_THRESHOLD_BYTES:=52428800} # 50MB
 : ${ROLLBACK_ROLLBACK_CONFLICT_MODE:=skip} # overwrite|merge|skip
 
@@ -24,6 +25,39 @@ compute_checksum() {
             echo ""
             return 1
         fi
+    fi
+}
+
+# 强制分别计算 sha256 与 md5（尽可能使用系统可用工具）
+compute_sha256() {
+    local file="$1"
+    if [[ ! -f "$file" ]]; then
+        echo ""
+        return 1
+    fi
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum --binary "$file" | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$file" | awk '{print $1}'
+    else
+        echo ""
+        return 1
+    fi
+}
+
+compute_md5() {
+    local file="$1"
+    if [[ ! -f "$file" ]]; then
+        echo ""
+        return 1
+    fi
+    if command -v md5sum >/dev/null 2>&1; then
+        md5sum "$file" | awk '{print $1}'
+    elif command -v md5 >/dev/null 2>&1; then
+        md5 -q "$file" 2>/dev/null || echo ""
+    else
+        echo ""
+        return 1
     fi
 }
 
@@ -50,7 +84,7 @@ generate_manifest() {
         size=$(stat -c %s -- "$f" 2>/dev/null || echo 0)
         mtime=$(stat -c %Y -- "$f" 2>/dev/null || echo 0)
         checksum=""
-        if [[ "$ROLLBACK_VERIFY_CHECKSUM" == "true" ]]; then
+        if [[ "$ROLLBACK_DIR_VERIFY_CHECKSUM" == "true" ]]; then
             if ! is_large_file "$f"; then
                 checksum=$(compute_checksum "$f" 2>/dev/null || echo "")
             fi
@@ -291,18 +325,21 @@ safe_cp() {
     op_id=$(op_prewrite "" "$restore_cmd" "restore backup for $dst")
 
     if cp -p "$src" "$dst"; then
-        # 校验（小文件可能会有 checksum）
-        if [[ "$ROLLBACK_VERIFY_CHECKSUM" == "true" ]]; then
-            if ! is_large_file "$dst"; then
-                local c1 c2
-                c1=$(compute_checksum "$src" 2>/dev/null || echo "")
-                c2=$(compute_checksum "$dst" 2>/dev/null || echo "")
-                if [[ -n "$c1" && "$c1" != "$c2" ]]; then
-                    log_error "复制后校验失败: $src -> $dst"
-                    rollback_operation "$op_id"
-                    return 1
-                fi
-            fi
+        # 单文件强制双哈希校验（sha256 + md5）
+        local s_sha s_md d_sha d_md
+        s_sha=$(compute_sha256 "$src" 2>/dev/null || echo "")
+        s_md=$(compute_md5 "$src" 2>/dev/null || echo "")
+        d_sha=$(compute_sha256 "$dst" 2>/dev/null || echo "")
+        d_md=$(compute_md5 "$dst" 2>/dev/null || echo "")
+        if [[ -z "$s_sha" || -z "$s_md" || -z "$d_sha" || -z "$d_md" ]]; then
+            log_error "无法计算必要的哈希值（需要 sha256 与 md5 工具），取消操作: $src -> $dst"
+            rollback_operation "$op_id"
+            return 1
+        fi
+        if [[ "$s_sha" != "$d_sha" || "$s_md" != "$d_md" ]]; then
+            log_error "复制后双哈希校验失败: $src -> $dst"
+            rollback_operation "$op_id"
+            return 1
         fi
         op_commit "$op_id" || log_warn "op_commit 失败: $op_id"
         echo "$op_id"
@@ -477,9 +514,28 @@ safe_mv() {
         else
             restore_cmd+=" && rm -f '$dst'"
         fi
+
+        # 在执行移动前计算源文件哈希，以便在移动后对比（单文件强制双哈希校验）
+        local s_sha s_md d_sha d_md
+        s_sha=$(compute_sha256 "$src" 2>/dev/null || echo "")
+        s_md=$(compute_md5 "$src" 2>/dev/null || echo "")
+
         op_id=$(op_prewrite "" "$restore_cmd" "restore mv for $src <- $dst")
 
         if mv "$src" "$dst"; then
+            # 移动后校验目标文件哈希
+            d_sha=$(compute_sha256 "$dst" 2>/dev/null || echo "")
+            d_md=$(compute_md5 "$dst" 2>/dev/null || echo "")
+            if [[ -z "$s_sha" || -z "$s_md" || -z "$d_sha" || -z "$d_md" ]]; then
+                log_error "无法计算必要的哈希值（需要 sha256 与 md5 工具），取消操作: $src -> $dst"
+                rollback_operation "$op_id"
+                return 1
+            fi
+            if [[ "$s_sha" != "$d_sha" || "$s_md" != "$d_md" ]]; then
+                log_error "移动后双哈希校验失败: $src -> $dst"
+                rollback_operation "$op_id"
+                return 1
+            fi
             op_commit "$op_id" || log_warn "op_commit 失败: $op_id"
             echo "$op_id"
             return 0

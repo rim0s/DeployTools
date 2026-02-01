@@ -1,41 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# 例子：替换 /home/yunxi/traffic 下的 jar 并保证可回滚
-#!/bin/bash
-set -euo pipefail
-
-# 例子：替换 /home/yunxi/traffic 下的 jar 并保证可回滚
-# 步骤（按要求）：
-# 1. 停服务: docker stop traffic
-# 2. 备份: mv traffic-2.1.1_42.jar bak20260129traffic-2.1.1_42.jar
-#    新包 traffic-2.1.1_42.jar 需要已上传到同目录
-# 3. 启动: docker restart traffic
-# 4. 验证: ps -ef | grep java 中存在 traffic-2.1.1_42.jar
-
-# 加载项目公共库（依赖 logger, rollback 框架, sudo wrapper）
-_libdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"
-# 为避免被 source 的脚本（如 rollback-recover.sh）将主脚本的命令行参数误当作它们自己的参数，
-# 在 source 时临时清空位置参数，然后恢复。
-saved_args=("$@")
-set --
-source "${_libdir}/logger.sh" 2>/dev/null || true
-source "${_libdir}/utils.sh" 2>/dev/null || true
-source "${_libdir}/sudo.sh" 2>/dev/null || true
-source "${_libdir}/rollback-manager.sh" 2>/dev/null || true
-set -- "${saved_args[@]}"
-
-# 确认回滚框架加载成功
-if ! declare -f init_rollback_system_return >/dev/null 2>&1; then
-    echo "回滚框架未正确加载：lib/rollback-manager.sh 缺失或不可用" >&2
-    exit 1
-fi
-
-TARGET_DIR="/home/yunxi/traffic"
-
-#!/bin/bash
-set -euo pipefail
-
 # rollback_example_eg1.sh
 # 安全替换jar的示例脚本（支持 --yes, --dryrun, --restore <session>）
 

@@ -98,6 +98,8 @@ log_message "这是一条日志信息" "INFO"
 sudo_execute "systemctl status firewalld"
 ```
 
+> 注意：回滚子系统的详细行为（包括文件操作的校验策略、环境变量 `ROLLBACK_DIR_VERIFY_CHECKSUM` / `ROLLBACK_VERIFY_CHECKSUM`、以及单文件操作现在执行的 sha256+md5 双重校验）详见 `ROLLBACK_README.md`。
+
 ### 添加防火墙端口示例
 
 ```bash
