@@ -1,7 +1,16 @@
 #!/bin/bash
 # 安装脚本示例
 
-source "$(dirname "$0")/lib/rollback-manager.sh"
+# 推荐：通过 loader 加载完整模块集（默认包含 rollback 模块）
+# source "$(dirname "$0")/lib/loader.sh"
+# 可选：逐一 source 特定库（如果不想通过 loader）：
+# source "$(dirname "$0")/lib/rollback-manager.sh"
+# source "$(dirname "$0")/lib/rollback-file-ops.sh"
+# source "$(dirname "$0")/lib/rollback-conf-change.sh"
+# source "$(dirname "$0")/lib/rollback-service-manage.sh"
+
+# 支持 --restore 参数调用恢复工具（确保 loader 已加载或按需 source rollback-manager）
+source "$(dirname "$0")/lib/loader.sh" 2>/dev/null || source "$(dirname "$0")/lib/rollback-manager.sh"
 
 # 支持 --restore 参数调用恢复工具
 if [[ "$1" == "--restore" ]]; then

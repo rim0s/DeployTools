@@ -7,8 +7,12 @@
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 加载所有模块
+# 加载所有模块（推荐）
 source "${SCRIPT_DIR}/lib/loader.sh"
+# 可选：如果不希望通过 loader 加载全部模块，可按需逐一 source，示例：
+# source "${SCRIPT_DIR}/lib/logger.sh"
+# source "${SCRIPT_DIR}/lib/utils.sh"
+# source "${SCRIPT_DIR}/lib/sudo.sh"
 
 # 初始化
 init_the_batch "$@"

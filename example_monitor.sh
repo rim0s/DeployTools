@@ -12,11 +12,15 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
 
-# 加载模块
+# 加载模块（推荐通过 loader 加载所有模块）
 source "${LIB_DIR}/loader.sh" || {
     echo "错误: 无法加载模块" >&2
     exit 1
 }
+# 可选：逐一加载特定模块（如需更细粒度控制，可取消下面注释并修改）：
+# source "${LIB_DIR}/logger.sh"
+# source "${LIB_DIR}/utils.sh"
+# source "${LIB_DIR}/monitor.sh"
 
 #################################################################################################
 # 主函数

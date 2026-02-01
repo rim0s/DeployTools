@@ -1,5 +1,11 @@
 #!/bin/bash
-source "$(dirname "$0")/lib/rollback-manager.sh"
+# 推荐：通过 loader 加载完整模块集（默认包含 rollback 模块）
+# source "$(dirname "$0")/lib/loader.sh"
+# 可选逐一加载：
+# source "$(dirname "$0")/lib/rollback-manager.sh"
+# source "$(dirname "$0")/lib/rollback-file-ops.sh"
+# source "$(dirname "$0")/lib/rollback-batch-manage.sh"
+source "$(dirname "$0")/lib/loader.sh" 2>/dev/null || source "$(dirname "$0")/lib/rollback-manager.sh"
 
 init_rollback_system
 
@@ -23,9 +29,10 @@ if ! validate_config; then
     # restore_to_checkpoint "$checkpoint1"
 fi
 #!/bin/bash
-source ./rollback-manager.sh
+# 可选：直接 source 单个模块（由 loader 管理更推荐）
+# source ./rollback-manager.sh
 
-init_rollback_system
+# init_rollback_system (已在上方调用)
 
 # 第一阶段：准备
 echo "=== 第一阶段：准备 ==="

@@ -58,3 +58,14 @@ init_log 2>/dev/null
 
 # 记录模块加载
 LOG_message "模块加载器已加载所有基础模块" "INFO" 2>/dev/null || true
+
+# 条件加载回滚相关模块（默认开启）
+# 通过环境变量 ROLLBACK_MODULES 控制，设置为 "false" 可禁用
+ROLLBACK_MODULES="${ROLLBACK_MODULES:-true}"
+if [[ "${ROLLBACK_MODULES}" == "true" ]]; then
+    for _f in "${LIB_DIR}"/rollback-*.sh; do
+        [[ -f "$_f" ]] || continue
+        source "$_f" 2>/dev/null || source "./lib/$(basename "$_f")" 2>/dev/null || true
+    done
+    LOG_message "rollback modules loaded" "INFO" 2>/dev/null || true
+fi
