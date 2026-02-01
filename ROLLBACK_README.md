@@ -1,20 +1,20 @@
-## 当前变更摘要（2026-02-01）
+## 当前变更摘要 (2026-02-01)
 
-注意：仓库近期对回滚示例与管理器做了若干清理与改进，下面列出会影响使用或需要文档同步的要点：
-- 会话元数据与 last_session：`init_rollback_system` / `init_rollback_system_return` 在事务目录写入 `session.meta`，并向 `${ROLLBACK_PREFIX}/last_session.txt` 写入最新会话 ID，便于脚本打印与后续恢复（示例脚本会在完成时打印 `SESSION_ID`）。
-- 新增工具：`tools/rollback_sessions.sh`，用于列出和查看已保存的回滚会话（session meta / operations.log）。README 之前未列出该工具。
-- 示例脚本：新增 `rollback_example_eg1.sh`，支持 `--yes`（防止误操作）、`--dryrun`（仅打印命令，不执行）和 `--restore <session>`（从持久化会话恢复）。建议在 README 中参考该示例的用法进行演练和集成测试。
+注意: 仓库近期对回滚示例与管理器做了若干清理与改进, 下面列出会影响使用或需要文档同步的要点:
+- 会话元数据与 last_session: `init_rollback_system` / `init_rollback_system_return` 在事务目录写入 `session.meta`，并向 `${ROLLBACK_PREFIX}/last_session.txt` 写入最新会话 ID，便于脚本打印与后续恢复 (示例脚本会在完成时打印 `SESSION_ID`).
+- 新增工具: `tools/rollback_sessions.sh`, 用于列出和查看已保存的回滚会话 (session meta / operations.log). README 之前未列出该工具.
+- 示例脚本: 新增 `rollback_example_eg1.sh`, 支持 `--yes` (防止误操作)、`--dryrun` (仅打印命令, 不执行) 和 `--restore <session>` (从持久化会话恢复). 建议在 README 中参考该示例的用法进行演练和集成测试.
 - 日志模块健壮性：`lib/logger.sh` 已做健壮性修正（如避免在 `set -u` 下访问未定义数组时报错），脚本在被 `source` 时更稳定。
 - 管理器实现说明：仓库中 `lib/rollback-manager.sh` 已被替换为一个更小、更稳健的实现以恢复基础 API（`op_prewrite`/`op_commit`/`rollback_all`/`_load_transaction_into_memory` 等）。README 中对若些高级特性的描述（例如 `--auto-load`、`register_operation_at`、`.stack_order` 快照交互加载等）可能与当前最小实现不完全一致——请以代码为准或在需要时同步实现/文档。
 
 建议：我已把这些要点记录在本节。若你希望我把 README 中的高级特性说明与当前代码完全对齐（要么实现功能，要么删除/降级文档），我可以继续实现或调整文档并提交 PR。
 **Rollback 子系统 总览**
 
-- **目的**: 为项目提供一致、可注册、可回放的回滚（undo）能力，支持单次操作回滚、批次回滚与检查点恢复。
+- **目的**: 为项目提供一致、可注册、可回放的回滚 (undo) 能力，支持单次操作回滚、批次回滚与检查点恢复。
 
-**相关文件（位于 `lib/`）**
+**相关文件 (位于 `lib/`)**
 - `rollback-manager.sh`: 回滚子系统初始化、全局变量与自动加载 `rollback-*.sh` 模块。
-- `rollback_operation.sh`: 执行单个或全部回滚操作的引擎（`rollback_operation` / `rollback_all`）。
+- `rollback_operation.sh`: 执行单个或全部回滚操作的引擎 (`rollback_operation` / `rollback_all`).
 - `rollback-batch-manage.sh`: 批次（transaction/batch）管理：开始批次、回滚批次等。
 - `rollback-checkpoint-manage.sh`: 检查点保存/恢复接口。
 - `rollback-file-ops.sh`: 带回滚的文件操作（`safe_cp` / `safe_mv`）。
@@ -23,16 +23,16 @@
 - `logger.sh`: 日志输出（供回滚模块记录信息与错误）。
 
 **核心概念与流程**
-- 注册：各操作通过 `register_operation <op_id> <rollback_cmd> <desc>` 向回滚系统注册回滚命令，并将 `op_id` 推入 `OPERATION_STACK`。请注意：`register_operation` 仅做预写（prewrite，写入 pending），并**不会**自动把条目标记为 committed；调用者必须在主操作成功后显式调用 `op_commit <op_id>` 来完成提交。
-- 记录：会在当前事务目录（由 `ROLLBACK_PREFIX` 与 `TRANSACTION_ID` 组成）中记录 `operations.log`（含 `op_id` 与简短描述）。
-- 回滚执行：`rollback_operation <op_id>` 会按注册的回滚命令执行（通常用 `eval` 或安全替代），并从状态中移除该操作。`rollback_all`/按批次回滚会逆序执行 `OPERATION_STACK` 中的命令。
-- 批次/检查点：`begin_batch`/`add_to_batch` 用于把若干操作归为一组；检查点（checkpoint）会将当前 `OPERATION_STACK` 与回滚命令快照到文件，供后续 `restore_to_checkpoint` 使用。
+- 注册: 各操作通过 `register_operation <op_id> <rollback_cmd> <desc>` 向回滚系统注册回滚命令，并将 `op_id` 推入 `OPERATION_STACK`。请注意: `register_operation` 仅做预写 (prewrite, 写入 pending)，并**不会**自动把条目标记为 committed; 调用者必须在主操作成功后显式调用 `op_commit <op_id>` 来完成提交.
+- 记录: 会在当前事务目录 (由 `ROLLBACK_PREFIX` 与 `TRANSACTION_ID` 组成) 中记录 `operations.log` (含 `op_id` 与简短描述).
+- 回滚执行: `rollback_operation <op_id>` 会按注册的回滚命令执行 (通常用 `eval` 或安全替代), 并从状态中移除该操作. `rollback_all`/按批次回滚会逆序执行 `OPERATION_STACK` 中的命令.
+- 批次/检查点: `begin_batch`/`add_to_batch` 用于把若干操作归为一组; 检查点 (checkpoint) 会将当前 `OPERATION_STACK` 与回滚命令快照到文件, 供后续 `restore_to_checkpoint` 使用.
 
 **配置变量**
-- `ROLLBACK_PREFIX`：回滚数据存放根目录（默认实现在项目下 `.rollback_data` 或者可由环境覆盖）。
+- `ROLLBACK_PREFIX`: 回滚数据存放根目录 (默认实现在项目下 `.rollback_data` 或者可由环境覆盖).
 - `TRANSACTION_ID`：当前事务/批次唯一标识（脚本通常在 `init_rollback_system` 中生成）。
 
-**如何在脚本中使用（示例）**
+**如何在脚本中使用 (示例)**
 1. 在脚本顶部 source 回滚管理：
 
 ```bash
@@ -97,9 +97,9 @@ rollback_all
   - 目录递归（多文件）操作仍使用 manifest 校验机制，但是否启用目录校验现在由 `ROLLBACK_DIR_VERIFY_CHECKSUM` 控制（默认继承自 `ROLLBACK_VERIFY_CHECKSUM`）。大文件仍可根据阈值降级为 size+mtime 判断。
 
 - 具体函数与变量：
-  - `compute_sha256 <file>` / `compute_md5 <file>`：分别计算文件的 sha256 与 md5（优先使用系统工具 `sha256sum`/`shasum` 与 `md5sum`/`md5`）。
+  - `compute_sha256 <file>` / `compute_md5 <file>`: 分别计算文件的 sha256 与 md5 (优先使用系统工具 `sha256sum`/`shasum` 与 `md5sum`/`md5`).
   - 单文件流程：在执行单文件复制/移动前会计算源文件的 sha256 与 md5，执行后再分别计算目标文件两种哈希并逐一比较；若无法计算任一哈希或比较不一致，回滚操作并失败。
-  - 目录流程（递归）：`generate_manifest <srcdir> <manifest_out>` 仍生成 TSV（relpath, size, mtime, checksum）；实际是否计算 checksum 由 `ROLLBACK_DIR_VERIFY_CHECKSUM` 控制，并且对于大于 `ROLLBACK_LARGE_FILE_THRESHOLD_BYTES`（默认 50MB）的文件会跳过 checksum，仅比较 size/mtime。
+  - 目录流程 (递归): `generate_manifest <srcdir> <manifest_out>` 仍生成 TSV (relpath, size, mtime, checksum); 实际是否计算 checksum 由 `ROLLBACK_DIR_VERIFY_CHECKSUM` 控制, 并且对于大于 `ROLLBACK_LARGE_FILE_THRESHOLD_BYTES` (默认 50MB) 的文件会跳过 checksum, 仅比较 size/mtime.
 
 - 配置与安全：
   - `ROLLBACK_DIR_VERIFY_CHECKSUM`：控制目录递归时是否对每个小文件计算 checksum（默认值继承自 `ROLLBACK_VERIFY_CHECKSUM`）。
@@ -129,7 +129,7 @@ rc=$?
 if [[ $rc -eq 0 ]]; then
   echo "复制完成，opid=$opid"
 elif [[ $rc -eq 2 ]]; then
-  echo "复制存在冲突，生成合并目录：${ROLLBACK_PREFIX}/${TRANSACTION_ID}/pending/${opid}.merge"
+  echo "复制存在冲突，生成合并目录: ${ROLLBACK_PREFIX}/${TRANSACTION_ID}/pending/${opid}.merge"
   echo "请查看合并报告并手动合并后再调用 op_commit $opid 或手动清理。"
 else
   echo "复制失败或回滚已触发" >&2

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # rollback_example_eg1.sh
-# 安全替换jar的示例脚本（支持 --yes, --dryrun, --restore <session>）
+# 安全替换jar的示例脚本 (支持 --yes, --dryrun, --restore <session>)
 
 _libdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"
 # 在 source 时避免污染位置参数
@@ -26,7 +26,7 @@ validate_params() {
     [[ -z "${TARGET_DIR:-}" ]] && missing+=("TARGET_DIR")
     if (( ${#missing[@]} > 0 )); then
         log_error "缺少必填变量: ${missing[*]}"
-        log_error "请通过环境变量或修改脚本顶部来设置这些变量。示例： JAR_NAME=${JAR_NAME:-traffic-2.1.1_42.jar} CONTAINER_NAME=${CONTAINER_NAME:-traffic} TARGET_DIR=${TARGET_DIR} $0 --yes"
+        log_error "请通过环境变量或修改脚本顶部来设置这些变量。示例: JAR_NAME=${JAR_NAME:-traffic-2.1.1_42.jar} CONTAINER_NAME=${CONTAINER_NAME:-traffic} TARGET_DIR=${TARGET_DIR} $0 --yes"
         exit 2
     fi
     log_info "使用参数: TARGET_DIR=${TARGET_DIR}, JAR_NAME=${JAR_NAME}, CONTAINER_NAME=${CONTAINER_NAME}, BACKUP_NAME=${BACKUP_NAME}"
@@ -51,9 +51,9 @@ print_help() {
 Usage: $0 --yes [--dryrun]
        $0 --restore <sessionNO> [--dryrun]
 
---yes           必须（防止误操作），允许执行替换流程。
---dryrun        演练（打印命令，不实际执行）。
---restore id    使用历史会话 id 执行回滚（不需要 --yes）。
+--yes           必须 (防止误操作)，允许执行替换流程。
+--dryrun        演练 (打印命令, 不实际执行).
+--restore id    使用历史会话 id 执行回滚 (不需要 --yes).
 EOF
 }
 
@@ -87,7 +87,7 @@ _do_restore() {
     fi
     log_info "开始回滚会话: $RESTORE_SESSION_LOCAL"
     if [[ "$DRYRUN" -eq 1 ]]; then
-        log_info "[DRYRUN] 会话回滚演练: 以下回滚命令将按逆序执行（仅演示，不执行）"
+        log_info "[DRYRUN] 会话回滚演练: 以下回滚命令将按逆序执行 (仅演示, 不执行)"
         for ((i=${#OPERATION_STACK[@]}-1; i>=0; i--)); do
             opid=${OPERATION_STACK[$i]}
             log_info "  op=$opid -> ${ROLLBACK_COMMANDS[$opid]}"
@@ -143,7 +143,7 @@ finish() {
 }
 
 register_rollback_op() {
-    # 兼容占位：实际在 backup_jar 成功后注册 restart（见 backup_jar 中会设置 MV_OPID）
+    # 兼容占位: 实际在 backup_jar 成功后注册 restart (见 backup_jar 中会设置 MV_OPID)
     if [[ "$DRYRUN" -eq 1 ]]; then
         RESTART_OPID="dryrun-op-$(date +%s)"
     else
@@ -151,7 +151,7 @@ register_rollback_op() {
     fi
 }
 
-# 在 backup 成功后调用：将 restart 插入到 MV_OPID 之前，确保回滚逆序为 mv -> restart
+# 在 backup 成功后调用: 将 restart 插入到 MV_OPID 之前, 确保回滚逆序为 mv -> restart
 register_restart_before_mv() {
     local mvop="$1"
     if [[ -z "$mvop" ]]; then
@@ -163,7 +163,7 @@ register_restart_before_mv() {
         RESTART_OPID="dryrun-op-$(date +%s)"
         return 0
     fi
-    # 创建 restart 操作（作为普通 op），然后插入到 mvop 前
+    # 创建 restart 操作 (作为普通 op)，然后插入到 mvop 前
     local rid
     rid=$(register_operation "" "docker restart ${CONTAINER_NAME}" "restart ${CONTAINER_NAME} on restore") || {
         log_error "register_operation(restart) 失败"
@@ -227,14 +227,14 @@ start_service() {
 verify_service() {
     log_info "验证进程: 检查是否存在 ${JAR_NAME}"
     if [[ "$DRYRUN" -eq 1 ]]; then
-        echo "[DRYRUN] 演练模式跳过实际进程检查：将模拟查找 ${JAR_NAME} 的结果"
+        echo "[DRYRUN] 演练模式跳过实际进程检查: 将模拟查找 ${JAR_NAME} 的结果"
         return 0
     fi
     if ps -ef | grep java | grep -v grep | grep -q "${JAR_NAME}"; then
-        log_info "验证通过：已找到进程包含 ${JAR_NAME}"
+        log_info "验证通过: 已找到进程包含 ${JAR_NAME}"
         return 0
     else
-        log_error "验证失败：未在进程中找到 ${JAR_NAME}"
+        log_error "验证失败: 未在进程中找到 ${JAR_NAME}"
         return 1
     fi
 }

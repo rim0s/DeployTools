@@ -2,13 +2,13 @@
 
 ## 概述
 
-本项目对原 `ProjectManage_V48.sh`（7542 行）进行模块化重构，拆分为可维护的功能模块。项目主入口为项目根目录的 `ProjectManage.sh`（包含 main）。README 中提到的 `main.sh` 是留给使用者基于本框架自定义的示例入口文件。
+本项目对原 `ProjectManage_V48.sh` (7542 行) 进行模块化重构，拆分为可维护的功能模块。项目主入口为项目根目录的 `ProjectManage.sh` (包含 main)。README 中提到的 `main.sh` 是留给使用者基于本框架自定义的示例入口文件。
 
 ## 目录结构
 
 ```
 ProjectManage/
-├── ProjectManage.sh        # 主函数入口（本项目实际运行入口）
+├── ProjectManage.sh        # 主函数入口 (本项目实际运行入口)
 ├── lib/                    # 功能模块目录
 │   ├── 基础与工具: constants.sh, config.sh, utils.sh, logger.sh, banner.sh, sudo.sh, firewall.sh, init.sh, loader.sh
 │   ├── 网络与包管理: network.sh, package.sh, package_advanced.sh, path.sh
@@ -21,7 +21,7 @@ ProjectManage/
 └── README.md               # 本文件
 ```
 
-## 模块说明与函数清单（未测试标记仅针对今日新增模块）
+## 模块说明与函数清单 (未测试标记仅针对今日新增模块)
 
 ### 基础与通用
 - **constants.sh**: 颜色常量、版本信息、Banner 编码、日志级别映射
@@ -33,7 +33,7 @@ ProjectManage/
 - **firewall.sh**: `is_firewalld_active`/`is_iptables_active`/`get_active_firewall`/`add_firewall_ports`/`remove_firewall_ports`/`add_icmp_reply_block_rule`/`remove_icmp_reply_block_rule`
 - **init.sh**: `init_tmp`/`init_the_batch`/`end_the_batch`
 - **loader.sh**: 模块加载器
-- **debug.sh**: `bp`/`breakpoint`/`run_command`/`end_debug`（调试辅助）
+- **debug.sh**: `bp`/`breakpoint`/`run_command`/`end_debug` (调试辅助)
 
 ### 网络与包管理
 - **network.sh**: `check_internet`/`check_intranet_ip`/`check_connectivity`/`get_all_ip`
@@ -48,7 +48,7 @@ ProjectManage/
 ### 项目任务
 - **project.sh**: `PJ_1234`/`PJ_5678`/`PJ_20241128`/`PJ_set_new_fedora_workstation`/`test_batch`
 
-### 2026-01-17 新增系统管理模块（由AI拆分，状态：未测试）
+### 2026-01-17 新增系统管理模块 (由AI拆分, 状态: 未测试)
 - **nfs.sh**: NFS 共享管理
   - `empty_nfs_exports`/`nfs_share_usage`/`set_dir_2_nfs`/`remove_nfs_config`/`mount_nfs`/`mount_nfs_with_zenity`
 - **vnc.sh**: X11VNC 远程桌面
@@ -61,12 +61,12 @@ ProjectManage/
   - `mount_new_device_usage`/`mount_new_device`/`wait_for_input_2_exit`
 
 ### 2026-01-17 新增V48遗留功能模块（由AI拆分，状态：未测试）
-- **config_file_v48_legacy.sh**: 配置文件读写（V48旧版实现）
-  - `write_conf_file_old`/`get_item_from_conf`/`write_conf_file`（legacy版）
+- **config_file_v48_legacy.sh**: 配置文件读写 (V48旧版实现)
+  - `write_conf_file_old`/`get_item_from_conf`/`write_conf_file` (legacy版)
 - **class_file_v48_legacy.sh**: 类文件写入（V48旧版实现）
-  - `write_class_file_`（未优化版）/`write_class_file_Modifing`（改进中版）/`write_class_file_error`（失败版保留）
-- **media_tools_v48.sh**: 媒体与校验工具
-  - `generate_verification_code`（验证码生成与校验）/`find_pic`（图片筛选与操作）
+  - `write_class_file_` (未优化版) / `write_class_file_Modifing` (改进中版) / `write_class_file_error` (失败版保留)
+-- **media_tools_v48.sh**: 媒体与校验工具
+  - `generate_verification_code` (验证码生成与校验)/`find_pic` (图片筛选与操作)
 - **misc_legacy_v48.sh**: 杂项功能
   - `start_x_virtual_shell`（模拟交互shell）/`bash_description`（功能描述）/`process_file`（文件处理示例）
 - **system_boot.sh**: 引导与虚拟化信息
@@ -98,7 +98,7 @@ log_message "这是一条日志信息" "INFO"
 sudo_execute "systemctl status firewalld"
 ```
 
-> 注意：回滚子系统的详细行为（包括文件操作的校验策略、环境变量 `ROLLBACK_DIR_VERIFY_CHECKSUM` / `ROLLBACK_VERIFY_CHECKSUM`、以及单文件操作现在执行的 sha256+md5 双重校验）详见 `ROLLBACK_README.md`。
+> 注意: 回滚子系统的详细行为 (包括文件操作的校验策略、环境变量 `ROLLBACK_DIR_VERIFY_CHECKSUM` / `ROLLBACK_VERIFY_CHECKSUM`、以及单文件操作现在执行的 sha256+md5 双重校验) 详见 `ROLLBACK_README.md`。
  
 ## 回滚：使用示例与常用环境变量
 

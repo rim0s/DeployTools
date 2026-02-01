@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 配置（可由外部覆盖）
+# 配置 (可由外部覆盖)
 : ${ROLLBACK_VERIFY_CHECKSUM:=true}
 : ${ROLLBACK_DIR_VERIFY_CHECKSUM:=${ROLLBACK_VERIFY_CHECKSUM}}
 : ${ROLLBACK_LARGE_FILE_THRESHOLD_BYTES:=52428800} # 50MB
@@ -28,7 +28,7 @@ compute_checksum() {
     fi
 }
 
-# 强制分别计算 sha256 与 md5（尽可能使用系统可用工具）
+# 强制分别计算 sha256 与 md5 (尽可能使用系统可用工具)
 compute_sha256() {
     local file="$1"
     if [[ ! -f "$file" ]]; then
@@ -72,7 +72,7 @@ is_large_file() {
     return 1
 }
 
-# 生成目录 manifest（TSV: relpath\tsize\tmtime\tchecksum）
+# 生成目录 manifest (TSV: relpath\tsize\tmtime\tchecksum)
 generate_manifest() {
     local srcdir="$1"
     local manifest_out="$2"
@@ -124,7 +124,7 @@ verify_manifest() {
     return $ok
 }
 
-# 判断是否同一文件系统（device）
+# 判断是否同一文件系统 (device)
 is_same_filesystem() {
     local a="$1" b="$2"
     local da db
@@ -142,7 +142,7 @@ available_space_on_fs() {
     df -P -B1 "$path" 2>/dev/null | tail -1 | awk '{print $4}'
 }
 
-# 估算目录或文件大小（字节）
+# 估算目录或文件大小 (字节)
 estimate_size_bytes() {
     local path="$1"
     if [[ -d "$path" ]]; then
@@ -182,7 +182,7 @@ _ensure_tx_dirs() {
     mkdir -p "${ROLLBACK_PREFIX}/${TRANSACTION_ID}/pending" "${ROLLBACK_PREFIX}/${TRANSACTION_ID}/committed" "${ROLLBACK_PREFIX}/${TRANSACTION_ID}/backups"
 }
 
-# 安全的复制，支持文件与目录（-r）
+# 安全的复制，支持文件与目录 (-r)
 safe_cp() {
     local recursive=0
     local OPTIND=1
@@ -218,10 +218,10 @@ safe_cp() {
         local do_full_backup=1
         if ! check_space_for_operation "$src" "${ROLLBACK_PREFIX}/${TRANSACTION_ID}/backups"; then
             do_full_backup=0
-            log_warn "备份空间不足，将以 manifest-only 模式处理（不复制完整目标）: $dst"
+            log_warn "备份空间不足，将以 manifest-only 模式处理 (不复制完整目标): $dst"
         fi
 
-        # 如果目标存在且允许全备份，尝试原子移动到备份（快速）；如果失败，复制后删除
+        # 如果目标存在且允许全备份，尝试原子移动到备份 (快速); 如果失败，复制后删除
         if [[ -e "$dst" ]]; then
             if [[ $do_full_backup -eq 1 ]]; then
                 if mv "$dst" "$backupdir" 2>/dev/null; then
@@ -237,11 +237,11 @@ safe_cp() {
                     fi
                 fi
             else
-                log_info "跳过对目标的完整备份（空间受限）: $dst"
+                log_info "跳过对目标的完整备份 (空间受限): $dst"
             fi
         fi
 
-        # 预写 rollback（记录如何恢复备份）
+        # 预写 rollback (记录如何恢复备份)
         local rollback_cmd
         rollback_cmd="rm -rf '$dst'"
         if [[ -e "$backupdir" && $(ls -A "$backupdir" 2>/dev/null | wc -l) -gt 0 ]]; then
@@ -263,7 +263,7 @@ safe_cp() {
             else
                 # 校验失败 -> 根据冲突策略处理
                 if [[ "$ROLLBACK_ROLLBACK_CONFLICT_MODE" == "merge" ]]; then
-                    # 生成合并报告和 .ours/.theirs 副本（存在于 pending 下）
+                    # 生成合并报告和 .ours/.theirs 副本 (存在于 pending 下)
                     local merge_dir="${ROLLBACK_PREFIX}/${TRANSACTION_ID}/pending/${opid}.merge"
                     mkdir -p "$merge_dir"
                     local report_file="$merge_dir/merge-report.txt"
@@ -290,7 +290,7 @@ safe_cp() {
                     return 2
                 else
                     log_error "目录校验失败，见 $tmpmismatch"
-                    # 尝试恢复（调用预写命令）
+                    # 尝试恢复 (调用预写命令)
                     rollback_operation "$opid"
                     cat "$tmpmismatch" >&2
                     rm -f "$tmpmismatch"
@@ -325,14 +325,14 @@ safe_cp() {
     op_id=$(op_prewrite "" "$restore_cmd" "restore backup for $dst")
 
     if cp -p "$src" "$dst"; then
-        # 单文件强制双哈希校验（sha256 + md5）
+        # 单文件强制双哈希校验 (sha256 + md5)
         local s_sha s_md d_sha d_md
         s_sha=$(compute_sha256 "$src" 2>/dev/null || echo "")
         s_md=$(compute_md5 "$src" 2>/dev/null || echo "")
         d_sha=$(compute_sha256 "$dst" 2>/dev/null || echo "")
         d_md=$(compute_md5 "$dst" 2>/dev/null || echo "")
         if [[ -z "$s_sha" || -z "$s_md" || -z "$d_sha" || -z "$d_md" ]]; then
-            log_error "无法计算必要的哈希值（需要 sha256 与 md5 工具），取消操作: $src -> $dst"
+            log_error "无法计算必要的哈希值 (需要 sha256 与 md5 工具), 取消操作: $src -> $dst"
             rollback_operation "$op_id"
             return 1
         fi
@@ -352,7 +352,7 @@ safe_cp() {
     fi
 }
 
-# 安全的移动，支持目录递归（-r）
+# 安全的移动，支持目录递归 (-r)
 safe_mv() {
     local recursive=0
     local OPTIND=1
@@ -401,7 +401,7 @@ safe_mv() {
         if is_same_filesystem "$src" "$dst"; then
             need_src_backup=0
         fi
-        # 评估是否有足够空间备份源（仅在需要时）
+        # 评估是否有足够空间备份源 (仅在需要时)
         if [[ $need_src_backup -eq 1 ]]; then
             if check_space_for_operation "$src" "${ROLLBACK_PREFIX}/${TRANSACTION_ID}/backups"; then
                 if ! cp -a "$src" "$backupdir/src_backup"; then
@@ -409,12 +409,12 @@ safe_mv() {
                     return 1
                 fi
             else
-                log_warn "备份空间不足，跨设备移动不会创建完整源备份（风险提示）"
+                log_warn "备份空间不足，跨设备移动不会创建完整源备份 (风险提示)"
                 need_src_backup=0
             fi
         fi
 
-        # 预写 rollback：若需要恢复则还原备份
+        # 预写 rollback: 若需要恢复则还原备份
         local rollback_cmd
         rollback_cmd="rm -rf '$dst'"
         if [[ -d "$backupdir/src_backup" ]]; then
@@ -432,7 +432,7 @@ safe_mv() {
             echo "$opid"
             return 0
         else
-            # 跨设备：用 cp -a 然后删除源
+            # 跨设备: 用 cp -a 然后删除源
             # 在执行复制前生成 manifest 并在复制后校验
             manifest_file="${ROLLBACK_PREFIX}/${TRANSACTION_ID}/pending/${opid}.manifest"
             generate_manifest "$src" "$manifest_file"
@@ -494,7 +494,7 @@ safe_mv() {
         if [[ -e "$dst" ]]; then
             dst_backup="${ROLLBACK_PREFIX}/${TRANSACTION_ID}/backups/dst_backup_$(basename "$dst")_${RANDOM}"
             if ! cp -p "$dst" "$dst_backup"; then
-                log_warn "无法备份目标文件（非致命）: $dst"
+                log_warn "无法备份目标文件 (非致命): $dst"
                 dst_backup=""
             fi
         fi
@@ -527,7 +527,7 @@ safe_mv() {
             d_sha=$(compute_sha256 "$dst" 2>/dev/null || echo "")
             d_md=$(compute_md5 "$dst" 2>/dev/null || echo "")
             if [[ -z "$s_sha" || -z "$s_md" || -z "$d_sha" || -z "$d_md" ]]; then
-                log_error "无法计算必要的哈希值（需要 sha256 与 md5 工具），取消操作: $src -> $dst"
+                log_error "无法计算必要的哈希值 (需要 sha256 与 md5 工具), 取消操作: $src -> $dst"
                 rollback_operation "$op_id"
                 return 1
             fi
