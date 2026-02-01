@@ -193,23 +193,29 @@ register_restart_before_mv() {
         return 1
     fi
     if [[ "$DRYRUN" -eq 1 ]]; then
-        log_info "[DRYRUN] would register restart before $mvop: docker restart ${CONTAINER_NAME}"
+        log_info "[DRYRUN] would register restart before $mvop: docker start ${CONTAINER_NAME}"
         RESTART_OPID="dryrun-op-$(date +%s)"
         return 0
     fi
     # 创建 restart 操作 (作为普通 op)，然后插入到 mvop 前
     local rid
-    rid=$(register_operation "" "docker restart ${CONTAINER_NAME}" "restart ${CONTAINER_NAME} on restore") || {
-        log_error "register_operation(restart) 失败"
+    rid=$(register_operation "" "docker start ${CONTAINER_NAME}" "start ${CONTAINER_NAME} on restore") || {
+        log_error "register_operation(start) 失败"
         return 1
     }
     # 找到 mvop 索引并在其前面插入 restart
-    register_operation_before "$mvop" "$rid" "docker restart ${CONTAINER_NAME}" "restart ${CONTAINER_NAME} on restore" >/dev/null 2>&1 || true
+    register_operation_before "$mvop" "$rid" "docker start ${CONTAINER_NAME}" "start ${CONTAINER_NAME} on restore" >/dev/null 2>&1 || true
     RESTART_OPID="$rid"
     log_info "已插入 restart 回滚项 $RESTART_OPID 在 $mvop 之前"
 }
 
 stop_service() {
+    # 记录容器在停止前是否处于运行状态，恢复时仅针对之前运行的容器启动
+    PREV_CONTAINER_RUNNING=$(docker inspect -f '{{.State.Running}}' "${CONTAINER_NAME}" 2>/dev/null || echo "false")
+    if [[ "$PREV_CONTAINER_RUNNING" != "true" ]]; then
+        log_info "容器 ${CONTAINER_NAME} 在停止前未运行 (状态=${PREV_CONTAINER_RUNNING})，跳过停止操作"
+        return 0
+    fi
     log_info "停止容器: ${CONTAINER_NAME}"
     run_system_cmd "docker stop ${CONTAINER_NAME}"
 }
@@ -254,8 +260,13 @@ check_new_package() {
 }
 
 start_service() {
-    log_info "重启容器: ${CONTAINER_NAME}"
-    run_system_cmd "docker restart ${CONTAINER_NAME}"
+    # 仅在容器原先处于运行状态时启动，以避免不必要的启动/错误
+    if [[ "${PREV_CONTAINER_RUNNING:-false}" != "true" ]]; then
+        log_info "容器 ${CONTAINER_NAME} 在变更前并未运行，跳过启动"
+        return 0
+    fi
+    log_info "启动容器: ${CONTAINER_NAME} (使用 docker start)"
+    run_system_cmd "docker start ${CONTAINER_NAME}"
 }
 
 verify_service() {
