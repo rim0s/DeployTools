@@ -163,6 +163,35 @@ esac
 
 更多细节请参阅 `ROLLBACK_README.md`，该文件包含 manifest、合并模式与事务加载的完整说明。
 
+### 回滚触发条件与注意事项（新增）
+
+问题概述:
+- 本脚本在主流程中启用了 `set -euo pipefail` 并通过 `trap 'on_error' ERR` 捕获错误；这意味着“任何命令返回非0 的退出码”会触发 `on_error`，进而执行 `rollback_all`。
+- 因此某些系统命令（例如 `docker stop`/`docker start`/`docker restart`）在出现错误或超时等情形时返回非0，会被视作需要回滚的故障点；而仅有 stderr 输出但返回 0 的命令不会触发回滚。
+
+触发回滚的具体条件:
+- 脚本层面：任何未被显式捕获或屏蔽（例如 `|| true`）的命令返回非0，将触发 ERR trap，从而调用 `rollback_all`。
+- 管道/子命令：启用了 `pipefail`，因此管道中任一环节返回非0 会导致整个管道返回非0 并触发回滚。
+- 显式调用：代码中若直接调用 `rollback_all` / `rollback_operation` 也会触发回滚流程。
+
+关于输出 vs 退出码:
+- 只有非0 的退出码会触发自动回滚；单纯的 stderr 输出（但进程返回0）不会触发。
+
+与 Docker 操作相关的风险:
+- `docker restart` 可能在失败时返回非0 或输出额外的 stderr，从而误触发回滚。为降低误触发风险，建议：
+  - 在停止操作前记录容器的运行状态（脚本当前已记录 `PREV_CONTAINER_RUNNING`），并在恢复/启动时只对此前处于运行状态的容器执行 `docker start`。这样可避免对本就未运行的容器重复 `restart` 产生的异常影响。
+
+改进建议（已应用 / 建议尽快实施）:
+1. 明确错误判定而非只依赖命令退出码：对关键命令使用显式返回码检查与日志记录，例如 `cmd; rc=$?; if (( rc != 0 )); then log_error ...; rollback_all; fi`。这样可在触发回滚前记录更多上下文并对特定返回码做白名单处理。
+2. 将 `verify_service()` 改为更可靠的健康检查方式：优先使用 `docker inspect --format '{{.State.Health.Status}}'`（若容器配置了 healthcheck）、或使用 HTTP/端口探针，只有在健康检查通过后才 `op_commit`。
+3. 对 `start/stop` 命令加入重试与超时策略，在确认多次失败后再触发回滚以减少偶发网络/超时引起的误判。
+4. 引入 `safe_cmd()` 辅助函数：统一执行命令、捕获 stdout/stderr/rc，并基于可配置的白名单/黑名单规则决定是否触发回滚或仅记录警告。
+5. 对回滚命令本身（`ROLLBACK_COMMANDS`）增加日志记录与返回值容错，以便 `rollback_all` 在部分回滚失败时仍能完成其余操作并保留失败记录供人工处理（脚本当前已记录 operations.log）。
+
+后续行动建议:
+- 优先在 `verify_service()` 中实现更可靠的健康检查并在通过后再 `op_commit`（可显著降低误触发率）。
+- 若需要，我可以把上述 `safe_cmd()` 和更严格的 `verify_service()` 实现合并进 `rollback_example_eg1.sh` 并提交测试。请选择是否要我继续实现这些改进。
+
 ### 添加防火墙端口示例
 
 ```bash
