@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# pre-push hook: 阻止将敏感配置文件推送到 GitHub
+# 使用方法: 在仓库根目录运行 `scripts/install-git-hooks.sh` 来启用（会设置 core.hooksPath）
+
+remote_name="$1"
+remote_url="$2"
+
+# 仅对包含 github.com 的远端生效
+if ! echo "$remote_url" | grep -qi 'github.com'; then
+    exit 0
+fi
+
+forbidden_patterns=("*.conf" "*.ini" "etc/rollback_example.conf")
+has_forbidden=0
+
+# 读取要推送的 refs（stdin 提供多行: <local_ref> <local_sha> <remote_ref> <remote_sha>）
+while read -r local_ref local_sha remote_ref remote_sha; do
+    if [[ -z "${local_sha:-}" ]]; then
+        continue
+    fi
+
+    if [[ "$remote_sha" == "0000000000000000000000000000000000000000" ]]; then
+        # 新建分支：检查从该 commit 起的所有提交
+        commits=$(git rev-list "$local_sha" 2>/dev/null || true)
+    else
+        commits=$(git rev-list "$remote_sha".."$local_sha" 2>/dev/null || true)
+    fi
+
+    for commit in $commits; do
+        files=$(git diff-tree --no-commit-id --name-only -r "$commit" 2>/dev/null || true)
+        for f in $files; do
+            for pat in "${forbidden_patterns[@]}"; do
+                if [[ $f == $pat ]]; then
+                    echo "禁止将受限文件推送到 GitHub: $f" >&2
+                    has_forbidden=1
+                fi
+            done
+        done
+    done
+done
+
+if [[ $has_forbidden -ne 0 ]]; then
+    echo "推送中止: 识别到受限制的文件类型 (.conf/.ini 或 指定文件)。" >&2
+    echo "解决方式示例：在不包含这些文件的分支上推送，或在推送前移除/重写提交以去除这些文件。" >&2
+    exit 1
+fi
+
+exit 0

@@ -247,6 +247,48 @@ log_MESSAGE "仅输出屏幕" "INFO"
 - 作者: rim0s-team ( Deepseek, copilot, Cursor, rim0s )  
 
 
+## Git 钩子（防止将配置文件误推送到 GitHub）
+
+本项目提供可选的本地 Git 钩子，帮助在向 GitHub 推送时阻止包含敏感配置文件（如 `*.conf`、`*.ini` 或指定的 `etc/rollback_example.conf`）的提交。该钩子仅在本地启用（通过设置 `core.hooksPath` 指向仓库的 `.githooks` 目录），并不会自动在远端生效。
+
+当前仓库包含：
+
+- `.githooks/pre-push`：pre-push 钩子脚本。行为概要：
+  - 当推送目标 remote URL 中包含 `github.com` 时启用检查（即仅在推送到 GitHub 时生效）。
+  - 检查本次推送范围内的所有新增/修改文件名，如果匹配 `*.conf`、`*.ini`，或匹配钩子脚本中列出的具体路径（默认包含 `etc/rollback_example.conf`），则中止推送并打印错误说明。
+  - 该检查针对提交中的文件名匹配，不会读取或泄露文件内容。
+
+- `scripts/install-git-hooks.sh`：安装脚本。使用方法见下。
+- `.githooks/README.md`：钩子使用说明与规则说明。
+
+安装与使用（在每个需要启用该钩子的开发者本地执行一次）：
+
+```bash
+# 在仓库根目录执行一次：
+bash scripts/install-git-hooks.sh
+```
+
+安装脚本会：
+- 将 `git config core.hooksPath .githooks` 写入本地仓库配置，使 Git 使用该目录下的钩子脚本。
+- 确保 `.githooks/pre-push` 为可执行状态。
+
+行为与限制说明：
+
+- 钩子为“本地执行机制”，因此仓库可以将 `.githooks` 目录加入版本控制，团队成员需在本地运行安装脚本以启用本地钩子。
+- 钩子中止推送的判定基于远端 URL 包含 `github.com` 的简单匹配；如果你的 GitHub Enterprise 或自建服务使用不同域名，请修改 `.githooks/pre-push` 中的判断逻辑以匹配你的域名。
+- 钩子当前通过文件名模式匹配阻止敏感配置被推送；如果你需要更严格的检查（例如拒绝包含特定关键字的文件内容），建议在 CI 中加入额外检查（例如 `grep` 或专门的扫描工具），注意避免在 CI 中泄露敏感内容。
+
+如何放行某些文件或调整策略：
+
+- 编辑 `.githooks/pre-push`，调整 `forbidden_patterns` 数组以添加/移除受限路径或模式。
+- 若需要对 GitHub 推送进行例外（本地临时推送），可在推送前使用 `git push --no-verify` 绕过本地钩子（慎用）。
+
+安全建议：
+
+- 尽量不要在版本库中保留包含凭证或敏感路径的配置文件；把示例配置（如 `etc/rollback_example.conf`）保留为无敏感默认值的示例文件。
+- 对于必须存在但敏感的配置，考虑在部署流程中通过私有配置管理（Vault、CI Secret、服务器端配置）注入。
+
+
 ##  History
 - 2026-01-17        由 AI 完成剩余模块拆分（第二批）：
                   - 新增 V48 遗留功能模块5个：config_file_v48_legacy、class_file_v48_legacy、media_tools_v48、misc_legacy_v48、system_boot（状态：未测试）
