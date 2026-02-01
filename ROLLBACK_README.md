@@ -1,3 +1,13 @@
+## 当前变更摘要（2026-02-01）
+
+注意：仓库近期对回滚示例与管理器做了若干清理与改进，下面列出会影响使用或需要文档同步的要点：
+- 会话元数据与 last_session：`init_rollback_system` / `init_rollback_system_return` 在事务目录写入 `session.meta`，并向 `${ROLLBACK_PREFIX}/last_session.txt` 写入最新会话 ID，便于脚本打印与后续恢复（示例脚本会在完成时打印 `SESSION_ID`）。
+- 新增工具：`tools/rollback_sessions.sh`，用于列出和查看已保存的回滚会话（session meta / operations.log）。README 之前未列出该工具。
+- 示例脚本：新增 `rollback_example_eg1.sh`，支持 `--yes`（防止误操作）、`--dryrun`（仅打印命令，不执行）和 `--restore <session>`（从持久化会话恢复）。建议在 README 中参考该示例的用法进行演练和集成测试。
+- 日志模块健壮性：`lib/logger.sh` 已做健壮性修正（如避免在 `set -u` 下访问未定义数组时报错），脚本在被 `source` 时更稳定。
+- 管理器实现说明：仓库中 `lib/rollback-manager.sh` 已被替换为一个更小、更稳健的实现以恢复基础 API（`op_prewrite`/`op_commit`/`rollback_all`/`_load_transaction_into_memory` 等）。README 中对若些高级特性的描述（例如 `--auto-load`、`register_operation_at`、`.stack_order` 快照交互加载等）可能与当前最小实现不完全一致——请以代码为准或在需要时同步实现/文档。
+
+建议：我已把这些要点记录在本节。若你希望我把 README 中的高级特性说明与当前代码完全对齐（要么实现功能，要么删除/降级文档），我可以继续实现或调整文档并提交 PR。
 **Rollback 子系统 总览**
 
 - **目的**: 为项目提供一致、可注册、可回放的回滚（undo）能力，支持单次操作回滚、批次回滚与检查点恢复。
