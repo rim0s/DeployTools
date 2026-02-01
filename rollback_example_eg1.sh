@@ -12,12 +12,46 @@ source "${_libdir}/logger.sh" 2>/dev/null || true
 source "${_libdir}/utils.sh" 2>/dev/null || true
 source "${_libdir}/sudo.sh" 2>/dev/null || true
 source "${_libdir}/rollback-manager.sh" 2>/dev/null || true
+# 配置读取 helpers
+source "${_libdir}/config_file.sh" 2>/dev/null || true
 set -- "${saved_args[@]}"
 
-TARGET_DIR="/home/yunxi/traffic"
-JAR_NAME="${JAR_NAME:-traffic-2.1.1_42.jar}"
-CONTAINER_NAME="${CONTAINER_NAME:-traffic}"
-BACKUP_NAME="${BACKUP_NAME:-bak$(date +%Y%m%d%H%M%S)-${JAR_NAME}}"
+# 不在脚本中硬编码敏感内容：敏感变量必须由配置文件提供。
+# 脚本在未从配置文件读取到必需项时会中止执行以避免泄露信息。
+TARGET_DIR=""
+JAR_NAME=""
+CONTAINER_NAME=""
+BACKUP_NAME=""
+
+# 配置文件位置（可由环境变量 CONFIG_FILE 覆盖）
+CONFIG_FILE="${CONFIG_FILE:-$(dirname "${_libdir}")/etc/rollback_example.conf}"
+if [[ -f "${CONFIG_FILE}" ]]; then
+    # 使用项目已有的 read_ini_file 函数读取 INI 格式配置（强制要求配置文件提供敏感项）
+    cfg_val=$(read_ini_file "${CONFIG_FILE}" "example" "TARGET_DIR" 2>/dev/null || echo "")
+    [[ -n "$cfg_val" ]] && TARGET_DIR="$cfg_val"
+    cfg_val=$(read_ini_file "${CONFIG_FILE}" "example" "JAR_NAME" 2>/dev/null || echo "")
+    [[ -n "$cfg_val" ]] && JAR_NAME="$cfg_val"
+    cfg_val=$(read_ini_file "${CONFIG_FILE}" "example" "CONTAINER_NAME" 2>/dev/null || echo "")
+    [[ -n "$cfg_val" ]] && CONTAINER_NAME="$cfg_val"
+    cfg_val=$(read_ini_file "${CONFIG_FILE}" "example" "BACKUP_NAME" 2>/dev/null || echo "")
+    [[ -n "$cfg_val" ]] && BACKUP_NAME="$cfg_val"
+else
+    log_error "配置文件未找到: ${CONFIG_FILE}" || true
+    echo "为避免在脚本中暴露敏感信息，脚本仅支持通过配置文件提供 TARGET_DIR, JAR_NAME, CONTAINER_NAME。请创建配置文件或通过设置 CONFIG_FILE 指向有效文件。" >&2
+    exit 2
+fi
+
+# 配置文件已读取完毕，校验必填项（缺少则中止执行）
+if [[ -z "${TARGET_DIR:-}" || -z "${JAR_NAME:-}" || -z "${CONTAINER_NAME:-}" ]]; then
+    log_error "配置文件 ${CONFIG_FILE} 缺少必填项：TARGET_DIR/JAR_NAME/CONTAINER_NAME（至少一项为空）" || true
+    echo "请在 ${CONFIG_FILE} 的 [example] 段中填写 TARGET_DIR、JAR_NAME、CONTAINER_NAME 后重试。" >&2
+    exit 2
+fi
+
+# 若未提供 BACKUP_NAME，则在已知 JAR_NAME 的情况下生成一个备份名
+if [[ -z "${BACKUP_NAME:-}" ]]; then
+    BACKUP_NAME="bak$(date +%Y%m%d%H%M%S)-${JAR_NAME}"
+fi
 
 validate_params() {
     local missing=()
@@ -255,24 +289,41 @@ main() {
 
     log_info "开始更新 ${TARGET_DIR}/${JAR_NAME} (container=${CONTAINER_NAME})"
 
+    # ---- 示例/框架 说明注释（便于阅读） ----
+    # 以下函数说明：
+    # - `register_rollback_op`: 本示例内的辅助函数，用于准备/记录将要注册的 restart 回滚项（示例逻辑）。
+    # - `stop_service` / `start_service` / `verify_service`: 本示例脚本实现的业务逻辑函数（演示如何在变更流程中停止/启动/验证服务）。
+    # - `backup_jar` / `check_new_package`: 本示例实现的文件操作与校验流程；其中内部使用框架提供的 `safe_mv` / `safe_cp` 来执行带回滚的文件操作。
+    # - `commit_ops`: 本示例的封装，调用框架的 `op_commit` 提交回滚条目。
+    # - 框架提供的核心函数（位于 `lib/rollback-*.sh`）包括：`init_rollback_system`、`op_prewrite`、`op_commit`、`rollback_operation`、`rollback_all`、`register_operation`、`register_operation_before` 等。
+    # 请区分：框架函数在 `lib/` 中实现；示例脚本只演示如何调用这些接口并处理业务流程。
+
+    # 注册占位回滚项（示例）
     register_rollback_op
 
+    # 停止服务（示例实现，真实项目请根据服务管理替换实现）
     stop_service
 
+    # 备份并移动旧 JAR（示例实现，内部使用框架的 safe_mv 进行带回滚的移动）
     backup_jar || { false; }
 
+    # 检查新包是否存在（示例实现）
     check_new_package || { false; }
 
+    # 启动/重启服务（示例实现）
     start_service
 
+    # 验证服务是否按预期运行（示例实现）
     verify_service || { false; }
 
+    # 提交本次操作对应的回滚条目（示例：会调用框架的 op_commit）
     commit_ops
 
+    # 标记已提交，避免 on_error 中触发回滚
     _COMMITTED=1
     trap - ERR
 
-    log_info "更新完成，备份保留为 ${TARGET_DIR}/${BACKUP_NAME}。"
+    log_info "更新完成，备份保留为 ${TARGET_DIR}/${BACKUP_NAME}."
     return 0
 }
 
