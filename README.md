@@ -330,3 +330,10 @@ bash scripts/install-git-hooks.sh
 - 2025-11-09 15:30  由 Cursor 对 ProjectManage.sh 的第48版进行了模块化拆分。
                   暂未测试。
                   下一步先阅读和比对，确保逻辑完整无遗漏。
+- 2026-02-01        若干安全和文档更新（作者: rim0s-team）：
+                 - 新增本地 Git 钩子与安装脚本：`.githooks/pre-push` + `scripts/install-git-hooks.sh`，用于在推送到 GitHub 时阻止 `*.conf` / `*.ini` 或指定敏感配置文件（默认 `etc/rollback_example.conf`）被误推送（commit: bb07988）。
+                 - 新增示例配置文件：`etc/rollback_example.conf`（带注释），示例用于 `rollback_example_eg1.sh` 的配置化部署（commit: bb07988）。
+                 - 修复示例脚本 `rollback_example_eg1.sh` 的敏感信息暴露问题：移除脚本内硬编码的 `TARGET_DIR`/`JAR_NAME`/`CONTAINER_NAME`，强制从配置文件读取必要参数，若缺失则中止执行（commit: 13cbb05）。
+                 - 改进容器控制与回滚语义：记录容器停止前运行状态，恢复时使用 `docker start`（仅对原先运行的容器）并将回滚注册命令改为启动而非 restart，减少因 restart 导致的误触发（commit: 648262d）。
+                 - 在 `README.md` 中补充“回滚触发条件与注意事项”段，详细说明触发回滚的条件（exit code vs stdout、pipefail 行为、docker 操作风险）并列出后续改进建议（commit: 532a1d8）。
+                 - 所有上述变更已本地提交，可根据项目策略决定是否 push 到远端 `develop`（部分提交已在远端，详见版本历史）。
