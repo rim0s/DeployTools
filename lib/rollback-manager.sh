@@ -69,6 +69,116 @@ op_commit() {
     return 0
 }
 
+# 兼容层：历史代码可能调用 register_operation
+# 保持向后兼容性：register_operation -> op_prewrite
+register_operation() {
+    op_prewrite "$@"
+}
+
+# Helper: find op index in OPERATION_STACK (echo index or return 1)
+_find_op_index() {
+    local target="$1"
+    local i
+    for i in "${!OPERATION_STACK[@]}"; do
+        if [[ "${OPERATION_STACK[$i]}" == "$target" ]]; then
+            printf '%s' "$i"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Persist current OPERATION_STACK into pending/.stack_order
+_persist_stack_order() {
+    local pending_dir="${ROLLBACK_PREFIX}/${TRANSACTION_ID}/pending"
+    mkdir -p "$pending_dir" || return 1
+    local order_file="$pending_dir/.stack_order"
+    : > "$order_file"
+    local op
+    for op in "${OPERATION_STACK[@]}"; do
+        printf '%s\n' "$op" >> "$order_file"
+    done
+}
+
+# register_operation_at <index|end> <op_id_or_empty> <rollback_cmd> [description]
+# index can be a number (0-based) or the literal 'end'
+register_operation_at() {
+    local index_spec="$1"; shift
+    local op_id="$1"; shift
+    local rollback_cmd="$1"; shift
+    local description="$*"
+    _ensure_tx_dirs
+
+    # create op if not provided; op_prewrite will append to stack, we'll reposition
+    if [[ -z "$op_id" ]]; then
+        op_id=$(op_prewrite "" "$rollback_cmd" "$description") || return 1
+        # remove the last appended element (we will re-insert at desired index)
+        local last_index=$(( ${#OPERATION_STACK[@]} - 1 ))
+        unset 'OPERATION_STACK[$last_index]'
+    else
+        # write pending file for provided id
+        echo "${op_id}|${description}|${rollback_cmd}" > "${ROLLBACK_PREFIX}/${TRANSACTION_ID}/pending/${op_id}" || return 1
+    fi
+
+    # determine numeric index
+    local idx
+    if [[ "$index_spec" == "end" ]]; then
+        idx=${#OPERATION_STACK[@]}
+    elif [[ "$index_spec" =~ ^[0-9]+$ ]]; then
+        idx=$index_spec
+        if (( idx < 0 )); then idx=0; fi
+        if (( idx > ${#OPERATION_STACK[@]} )); then idx=${#OPERATION_STACK[@]}; fi
+    else
+        idx=${#OPERATION_STACK[@]}
+    fi
+
+    # insert op_id at idx
+    local new_stack=()
+    local i
+    for ((i=0;i<idx;i++)); do
+        new_stack+=("${OPERATION_STACK[$i]}")
+    done
+    new_stack+=("$op_id")
+    for ((i=idx;i<${#OPERATION_STACK[@]};i++)); do
+        new_stack+=("${OPERATION_STACK[$i]}")
+    done
+    OPERATION_STACK=("${new_stack[@]}")
+
+    # persist order and command mapping
+    ROLLBACK_COMMANDS["$op_id"]="$rollback_cmd"
+    _persist_stack_order || true
+    printf '%s' "$op_id"
+}
+
+# register_operation_before <existing_opid> <op_id_or_empty> <rollback_cmd> [description]
+register_operation_before() {
+    local existing_op="$1"; shift
+    local op_id="$1"; shift
+    local rollback_cmd="$1"; shift
+    local description="$*"
+    local idx
+    if idx=$(_find_op_index "$existing_op") 2>/dev/null; then
+        register_operation_at "$idx" "$op_id" "$rollback_cmd" "$description"
+    else
+        register_operation_at end "$op_id" "$rollback_cmd" "$description"
+    fi
+}
+
+# register_operation_after <existing_opid> <op_id_or_empty> <rollback_cmd> [description]
+register_operation_after() {
+    local existing_op="$1"; shift
+    local op_id="$1"; shift
+    local rollback_cmd="$1"; shift
+    local description="$*"
+    local idx
+    if idx=$(_find_op_index "$existing_op") 2>/dev/null; then
+        idx=$((idx + 1))
+        register_operation_at "$idx" "$op_id" "$rollback_cmd" "$description"
+    else
+        register_operation_at end "$op_id" "$rollback_cmd" "$description"
+    fi
+}
+
 rollback_operation() {
     local op_code="$1"
     if [[ -z "$op_code" ]]; then

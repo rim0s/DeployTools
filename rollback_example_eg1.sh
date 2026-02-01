@@ -25,6 +25,12 @@ source "${_libdir}/sudo.sh" 2>/dev/null || true
 source "${_libdir}/rollback-manager.sh" 2>/dev/null || true
 set -- "${saved_args[@]}"
 
+# 确认回滚框架加载成功
+if ! declare -f init_rollback_system_return >/dev/null 2>&1; then
+    echo "回滚框架未正确加载：lib/rollback-manager.sh 缺失或不可用" >&2
+    exit 1
+fi
+
 TARGET_DIR="/home/yunxi/traffic"
 
 #!/bin/bash
@@ -54,12 +60,11 @@ validate_params() {
     [[ -z "${CONTAINER_NAME:-}" ]] && missing+=("CONTAINER_NAME")
     [[ -z "${TARGET_DIR:-}" ]] && missing+=("TARGET_DIR")
     if (( ${#missing[@]} > 0 )); then
-        echo "缺少必填变量: ${missing[*]}" >&2
-        echo "请通过环境变量或修改脚本顶部来设置这些变量。示例：" >&2
-        echo "  JAR_NAME=${JAR_NAME:-traffic-2.1.1_42.jar} CONTAINER_NAME=${CONTAINER_NAME:-traffic} TARGET_DIR=${TARGET_DIR} $0 --yes" >&2
+        log_error "缺少必填变量: ${missing[*]}"
+        log_error "请通过环境变量或修改脚本顶部来设置这些变量。示例： JAR_NAME=${JAR_NAME:-traffic-2.1.1_42.jar} CONTAINER_NAME=${CONTAINER_NAME:-traffic} TARGET_DIR=${TARGET_DIR} $0 --yes"
         exit 2
     fi
-    echo "使用参数: TARGET_DIR=${TARGET_DIR}, JAR_NAME=${JAR_NAME}, CONTAINER_NAME=${CONTAINER_NAME}, BACKUP_NAME=${BACKUP_NAME}" >&2
+    log_info "使用参数: TARGET_DIR=${TARGET_DIR}, JAR_NAME=${JAR_NAME}, CONTAINER_NAME=${CONTAINER_NAME}, BACKUP_NAME=${BACKUP_NAME}"
 }
 
 MODE="update"
@@ -104,7 +109,7 @@ parse_args() {
     done
 
     if [[ "$MODE" != "restore" && $ENFORCE_YES -ne 1 ]]; then
-        echo "为防止误操作，必须加 --yes 才会执行更新。若要恢复历史会话，使用 --restore <sessionNO>。" >&2
+        log_error "为防止误操作，必须加 --yes 才会执行更新。若要恢复历史会话，使用 --restore <sessionNO>。"
         exit 2
     fi
 }
@@ -117,10 +122,10 @@ _do_restore() {
     fi
     log_info "开始回滚会话: $RESTORE_SESSION_LOCAL"
     if [[ "$DRYRUN" -eq 1 ]]; then
-        echo "[DRYRUN] 会话回滚演练: 以下回滚命令将按逆序执行（仅演示，不执行）"
+        log_info "[DRYRUN] 会话回滚演练: 以下回滚命令将按逆序执行（仅演示，不执行）"
         for ((i=${#OPERATION_STACK[@]}-1; i>=0; i--)); do
             opid=${OPERATION_STACK[$i]}
-            echo "  op=$opid -> ${ROLLBACK_COMMANDS[$opid]}"
+            log_info "  op=$opid -> ${ROLLBACK_COMMANDS[$opid]}"
         done
         return 0
     fi
@@ -137,18 +142,12 @@ init_session() {
     validate_params
 }
 
-# ensure logger dir exists
-_logdir_parent="$(dirname "${this_LOG_FILE:-/tmp/rollback_example.log}")"
-if [[ -e "$_logdir_parent" ]]; then
-    if [[ ! -d "$_logdir_parent" ]]; then
-        echo "日志路径冲突：$_logdir_parent 已存在且不是目录" >&2
-        exit 1
-    fi
-else
-    mkdir -p "$_logdir_parent" || {
-        echo "无法创建日志目录: $_logdir_parent" >&2
-        exit 1
-    }
+# ensure logger dir exists (use logger module helpers)
+this_LOG_FILE="${this_LOG_FILE:-/tmp/rollback_example.log}"
+this_LOG_DIR="${this_LOG_DIR:-$(dirname "$this_LOG_FILE") }"
+if ! init_log >/dev/null 2>&1; then
+    echo "无法创建或初始化日志目录: ${this_LOG_DIR:-}" >&2
+    exit 1
 fi
 
 _COMMITTED=0
@@ -179,17 +178,36 @@ finish() {
 }
 
 register_rollback_op() {
-    ROLLBACK_CMD="mv '${TARGET_DIR}/${BACKUP_NAME}' '${TARGET_DIR}/${JAR_NAME}' && docker restart ${CONTAINER_NAME}"
+    # 兼容占位：实际在 backup_jar 成功后注册 restart（见 backup_jar 中会设置 MV_OPID）
     if [[ "$DRYRUN" -eq 1 ]]; then
-        echo "[DRYRUN] will register rollback: $ROLLBACK_CMD"
-        opid="dryrun-op-$(date +%s)"
+        RESTART_OPID="dryrun-op-$(date +%s)"
     else
-        opid=$(register_operation "" "$ROLLBACK_CMD" "restore original jar and restart ${CONTAINER_NAME}") || {
-            log_error "register_operation 失败"
-            exit 1
-        }
-        log_info "已预写回滚操作 opid=$opid"
+        RESTART_OPID=""
     fi
+}
+
+# 在 backup 成功后调用：将 restart 插入到 MV_OPID 之前，确保回滚逆序为 mv -> restart
+register_restart_before_mv() {
+    local mvop="$1"
+    if [[ -z "$mvop" ]]; then
+        log_warn "register_restart_before_mv: missing mv op id; skip"
+        return 1
+    fi
+    if [[ "$DRYRUN" -eq 1 ]]; then
+        log_info "[DRYRUN] would register restart before $mvop: docker restart ${CONTAINER_NAME}"
+        RESTART_OPID="dryrun-op-$(date +%s)"
+        return 0
+    fi
+    # 创建 restart 操作（作为普通 op），然后插入到 mvop 前
+    local rid
+    rid=$(register_operation "" "docker restart ${CONTAINER_NAME}" "restart ${CONTAINER_NAME} on restore") || {
+        log_error "register_operation(restart) 失败"
+        return 1
+    }
+    # 找到 mvop 索引并在其前面插入 restart
+    register_operation_before "$mvop" "$rid" "docker restart ${CONTAINER_NAME}" "restart ${CONTAINER_NAME} on restore" >/dev/null 2>&1 || true
+    RESTART_OPID="$rid"
+    log_info "已插入 restart 回滚项 $RESTART_OPID 在 $mvop 之前"
 }
 
 stop_service() {
@@ -198,16 +216,30 @@ stop_service() {
 }
 
 backup_jar() {
-    if [[ ! -f "${TARGET_DIR}/${JAR_NAME}" ]]; then
+    local src="${TARGET_DIR}/${JAR_NAME}"
+    local dst="${TARGET_DIR}/${BACKUP_NAME}"
+    if [[ ! -f "$src" ]]; then
         if [[ "$DRYRUN" -eq 1 ]]; then
-            echo "[DRYRUN] 原始 jar 不存在，演练模式下将模拟备份: ${TARGET_DIR}/${JAR_NAME} -> ${BACKUP_NAME}"
+            echo "[DRYRUN] 原始 jar 不存在，演练模式下将模拟备份: $src -> $dst"
             return 0
         fi
-        log_error "未找到原始 jar: ${TARGET_DIR}/${JAR_NAME}"
+        log_error "未找到原始 jar: $src"
         return 1
     fi
-    log_info "备份原始 jar -> ${BACKUP_NAME}"
-    run_system_cmd "mv '${TARGET_DIR}/${JAR_NAME}' '${TARGET_DIR}/${BACKUP_NAME}'"
+    log_info "备份原始 jar -> $dst"
+    # 使用 safe_mv 来完成带回滚的移动操作
+    if [[ "$DRYRUN" -eq 1 ]]; then
+        echo "[DRYRUN] safe_mv '$src' '$dst'"
+        return 0
+    fi
+    # safe_mv 会在成功时 op_commit 并返回 opid
+    local mv_opid
+    mv_opid=$(safe_mv "$src" "$dst") || {
+        log_error "safe_mv 失败: $src -> $dst"
+        return 1
+    }
+    log_info "safe_mv 已生成回滚项 opid=$mv_opid"
+    return 0
 }
 
 check_new_package() {
@@ -243,10 +275,12 @@ verify_service() {
 }
 
 commit_ops() {
-    if [[ "$DRYRUN" -eq 0 ]]; then
-        op_commit "$opid" || log_warn "op_commit 失败: $opid (但更新已完成)"
-    else
-        echo "[DRYRUN] would op_commit $opid"
+    if [[ "$DRYRUN" -eq 1 ]]; then
+        echo "[DRYRUN] would op_commit ${RESTART_OPID:-}" 
+        return 0
+    fi
+    if [[ -n "${RESTART_OPID:-}" ]]; then
+        op_commit "$RESTART_OPID" || log_warn "op_commit 失败: $RESTART_OPID"
     fi
 }
 
