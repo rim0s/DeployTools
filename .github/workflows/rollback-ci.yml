@@ -1,0 +1,23 @@
+name: Rollback CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up shell
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y coreutils bash
+
+      - name: Run CI checks script
+        run: |
+          chmod +x ./tools/ci/run_checks.sh
+          ./tools/ci/run_checks.sh
