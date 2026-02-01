@@ -99,6 +99,69 @@ sudo_execute "systemctl status firewalld"
 ```
 
 > 注意：回滚子系统的详细行为（包括文件操作的校验策略、环境变量 `ROLLBACK_DIR_VERIFY_CHECKSUM` / `ROLLBACK_VERIFY_CHECKSUM`、以及单文件操作现在执行的 sha256+md5 双重校验）详见 `ROLLBACK_README.md`。
+ 
+## 回滚：使用示例与常用环境变量
+
+下面给出一些常见的运行示例与可配置环境变量，方便在脚本或 CI 中集成回滚子系统。
+
+- 常用环境变量说明：
+  - `ROLLBACK_PREFIX`：回滚数据存放根目录（默认：项目下 `.rollback_data`，可覆盖）。
+  - `ROLLBACK_VERIFY_CHECKSUM`：历史通用开关，控制目录校验的默认值（`true`/`false`，默认 `true`）。
+  - `ROLLBACK_DIR_VERIFY_CHECKSUM`：目录递归校验开关（若未设置则继承 `ROLLBACK_VERIFY_CHECKSUM`）。
+  - `ROLLBACK_LARGE_FILE_THRESHOLD_BYTES`：大文件阈值（默认 `52428800`，即 50MB），超过阈值目录校验会跳过 checksum 改用 size/mtime。
+  - `ROLLBACK_ROLLBACK_CONFLICT_MODE`：冲突处理模式（`skip`|`overwrite`|`merge`，默认 `skip`）。
+  - `ROLLBACK_AUTO_LOAD_TXID`：若在非交互脚本中需要自动加载某个事务，可设置该变量。
+
+- 基本运行与演练：
+
+```bash
+# 演练模式（仅打印操作，不会对系统做变更）
+export ROLLBACK_PREFIX="$PWD/.rollback_data"
+./rollback_example_eg1.sh --yes --dryrun
+
+# 真正执行（谨慎）：
+./rollback_example_eg1.sh --yes
+
+# 使用历史会话回滚（不需要 --yes）
+./rollback_example_eg1.sh --restore tx_1610000000_abcd
+```
+
+- 在脚本中通过环境变量控制目录校验与阈值示例：
+
+```bash
+# 禁用目录递归的 checksum（但单文件双哈希仍强制启用）
+export ROLLBACK_DIR_VERIFY_CHECKSUM=false
+
+# 调整大文件阈值为 200MB
+export ROLLBACK_LARGE_FILE_THRESHOLD_BYTES=$((200*1024*1024))
+
+# 运行示例脚本
+./rollback_example_eg1.sh --yes --dryrun
+```
+
+- 使用 `safe_cp` / `safe_mv` 示例（脚本内调用）：
+
+```bash
+source ./lib/loader.sh
+init_rollback_system
+
+# 复制单文件（内部会强制执行 sha256+md5 校验）
+opid=$(safe_cp /tmp/new.jar /opt/app/new.jar)
+if [[ -n "$opid" ]]; then
+  # 主操作成功后提交回滚记录
+  op_commit "$opid"
+fi
+
+# 递归目录复制（是否计算 checksum 取决于 ROLLBACK_DIR_VERIFY_CHECKSUM）
+opid=$(safe_cp -r /tmp/configs /etc/myapp/configs)
+case $? in
+  0) op_commit "$opid" ;; 
+  2) echo "存在冲突，查看 ${ROLLBACK_PREFIX}/${TRANSACTION_ID}/pending/${opid}.merge" ;;
+  *) echo "复制失败" ;;
+esac
+```
+
+更多细节请参阅 `ROLLBACK_README.md`，该文件包含 manifest、合并模式与事务加载的完整说明。
 
 ### 添加防火墙端口示例
 
