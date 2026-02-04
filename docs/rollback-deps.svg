@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="640" viewBox="0 0 1000 640">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333" />
+    </marker>
+    <style>
+      .box{fill:#f8f9fa;stroke:#333;stroke-width:1.2;rx:6;}
+      .title{font:14px sans-serif;fill:#111}
+      .note{font:12px sans-serif;fill:#222}
+      .grp{fill:none;stroke:#bbb;stroke-dasharray:4 3}
+    </style>
+  </defs>
+
+  <!-- Nodes -->
+  <rect x="380" y="20" width="240" height="36" class="box" rx="6"/>
+  <text x="500" y="44" text-anchor="middle" class="title">rollback_example_eg1.sh</text>
+
+  <rect x="60" y="100" width="220" height="32" class="box" rx="6"/>
+  <text x="170" y="121" class="note">lib/logger.sh</text>
+  <rect x="60" y="150" width="220" height="32" class="box" rx="6"/>
+  <text x="170" y="171" class="note">lib/utils.sh</text>
+  <rect x="60" y="200" width="220" height="32" class="box" rx="6"/>
+  <text x="170" y="221" class="note">lib/sudo.sh</text>
+  <rect x="60" y="250" width="220" height="32" class="box" rx="6"/>
+  <text x="170" y="271" class="note">lib/config_file.sh</text>
+
+  <rect x="380" y="120" width="240" height="32" class="box" rx="6"/>
+  <text x="500" y="142" class="note">lib/rollback-manager.sh</text>
+
+  <rect x="720" y="100" width="240" height="32" class="box" rx="6"/>
+  <text x="840" y="121" class="note">lib/rollback-file-ops.sh</text>
+  <rect x="720" y="150" width="240" height="32" class="box" rx="6"/>
+  <text x="840" y="171" class="note">lib/rollback_operation.sh</text>
+
+  <rect x="380" y="240" width="240" height="32" class="box" rx="6"/>
+  <text x="500" y="262" class="note">etc/rollback_example.conf</text>
+
+  <!-- Optional group -->
+  <rect x="60" y="340" width="900" height="220" class="grp" rx="6"/>
+  <text x="80" y="360" class="note">Optional rollback modules (examples)</text>
+  <text x="120" y="388" class="note">lib/rollback-dir-manage.sh</text>
+  <text x="320" y="388" class="note">lib/rollback-conf-change.sh</text>
+  <text x="520" y="388" class="note">lib/rollback-recover.sh</text>
+  <text x="720" y="388" class="note">lib/rollback-service-manage.sh</text>
+  <text x="220" y="420" class="note">lib/rollback-batch-manage.sh</text>
+  <text x="420" y="420" class="note">lib/rollback-checkpoint-manage.sh</text>
+  <text x="620" y="420" class="note">lib/rollback-pkg-change.sh</text>
+
+  <!-- Arrows from main script to sourced libs -->
+  <line x1="500" y1="56" x2="170" y2="104" stroke="#333" stroke-width="1.2" marker-end="url(#arrow)" />
+  <line x1="500" y1="56" x2="170" y2="154" stroke="#333" stroke-width="1.2" marker-end="url(#arrow)" />
+  <line x1="500" y1="56" x2="170" y2="204" stroke="#333" stroke-width="1.2" marker-end="url(#arrow)" />
+  <line x1="500" y1="56" x2="170" y2="254" stroke="#333" stroke-width="1.2" marker-end="url(#arrow)" />
+
+  <!-- to rollback-manager -->
+  <line x1="500" y1="64" x2="500" y2="120" stroke="#333" stroke-width="1.2" marker-end="url(#arrow)" />
+
+  <!-- to file ops & rollback op -->
+  <line x1="620" y1="142" x2="720" y2="116" stroke="#333" stroke-width="1.2" marker-end="url(#arrow)" />
+  <line x1="620" y1="142" x2="840" y2="162" stroke="#333" stroke-width="1.2" marker-end="url(#arrow)" />
+
+  <!-- config file read -->
+  <line x1="500" y1="56" x2="500" y2="250" stroke="#666" stroke-width="1" marker-end="url(#arrow)" stroke-dasharray="3 3"/>
+
+  <!-- interactions between modules -->
+  <line x1="500" y1="140" x2="720" y2="116" stroke="#333" stroke-width="1.2" marker-end="url(#arrow)" />
+  <line x1="960" y1="116" x2="840" y2="162" stroke="#333" stroke-width="1.2" marker-end="url(#arrow)" />
+
+  <!-- labels -->
+  <text x="560" y="100" class="note">source / core APIs</text>
+  <text x="760" y="220" class="note">file ops use op_prewrite/op_commit/rollback</text>
+
+  <!-- footer -->
+  <text x="20" y="630" class="note">自动生成: docs/rollback-deps.svg</text>
+</svg>

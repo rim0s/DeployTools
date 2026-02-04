@@ -1,0 +1,22 @@
+graph TD
+  A[rollback_example_eg1.sh]
+  A -->|source| logger[lib/logger.sh]
+  A -->|source| utils[lib/utils.sh]
+  A -->|source| sudo[lib/sudo.sh]
+  A -->|source| rb_mgr[lib/rollback-manager.sh]
+  A -->|source| cfg[lib/config_file.sh]
+  A -->|reads| conf[etc/rollback_example.conf]
+  A -->|uses| file_ops[lib/rollback-file-ops.sh]
+  rb_mgr -->|provides| rb_core_funcs[init_rollback_system / op_prewrite / op_commit / _load_transaction_into_memory]
+  file_ops -->|calls| rb_mgr
+  file_ops -->|relies on| rb_ops[lib/rollback_operation.sh]
+  rb_ops -->|provides| rollback_operation / rollback_all
+  subgraph OptionalModules
+    dir[lib/rollback-dir-manage.sh]
+    confchg[lib/rollback-conf-change.sh]
+    recover[lib/rollback-recover.sh]
+    svc[lib/rollback-service-manage.sh]
+    batch[lib/rollback-batch-manage.sh]
+    checkpoint[lib/rollback-checkpoint-manage.sh]
+    pkg[lib/rollback-pkg-change.sh]
+  end
